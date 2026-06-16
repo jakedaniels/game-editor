@@ -26,6 +26,10 @@ module declarations for CSS/asset imports — keep it.
 ### Frontend (`frontend/`)
 - Entry: `src/main.tsx` wraps `<App>` in `<BrowserRouter>` (react-router). `src/App.tsx` is the
   shell: a top nav + `<Routes>` → `/` = `pages/ShapeEditorPage`, `/dialogue` = `pages/DialogueEditorPage`.
+- **Theming**: the palette is CSS variables under `[data-theme='neon'|'aqua'|'light']` in
+  `App.css`; `App.tsx` sets `document.documentElement.dataset.theme` and persists the choice via
+  `PATCH /api/user`. Accent shades use `color-mix(... var(--orange)/var(--green) ...)` so all
+  themes stay consistent — **don't hardcode accent `rgba()`** in component CSS.
 - **Typed API client**: `src/api/client.ts` is an `openapi-fetch` client typed by
   `src/api/schema.d.ts`, which is **generated** from the backend's OpenAPI spec via
   `npm run gen:api` (backend must be running). Don't hand-edit `schema.d.ts`; regenerate it.
@@ -51,11 +55,15 @@ module declarations for CSS/asset imports — keep it.
     `GET /api/dialogues?scene_id=` (a scene's roots), `GET /api/dialogues/{id}` (node + its
     `responses`), `POST /api/dialogues` (create; `scene_id`/`parent_id`/`character_id`/`text`),
     `PATCH /api/dialogues/{id}` (partial update of `text`/`character_id`).
+  - `GET /api/user` / `PATCH /api/user` — the **current user**. No real auth yet, so this is a
+    single default user (created on first access via `_current_user()`); it stores per-user
+    settings like the UI `theme`.
   - Interactive API docs (Swagger UI) at `/api/docs`; OpenAPI at `/api/openapi.json` (drives the
     frontend's `gen:api`).
 - `api/models.py`: `Level → Scene` (FK), `Scene ↔ Character` (M2M), and `Dialogue` — a
   self-referential branching node (`scene` FK, `parent` FK to self, `character` FK, `text`).
   A dialogue's children are `dialogue.responses`; a scene's tree is its `parent=None` roots.
+  `User` holds per-user settings (currently `theme`); no auth yet, so a single default user.
 - Database: Postgres via `DATABASES['default']` (psycopg 3), params from `POSTGRES_*` env vars
   (defaults target the local `game_editor` db/role). Migrations **are** applied; seed demo
   dialogue data with `python manage.py seed_dialogue`.

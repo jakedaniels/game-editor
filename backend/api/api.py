@@ -7,14 +7,29 @@ The schemas here drive the OpenAPI spec, which the frontend turns into typed TS
 from django.shortcuts import get_object_or_404
 from ninja import NinjaAPI, Schema
 
-from .models import Character, Dialogue, Scene
+from .models import Character, Dialogue, Scene, User
 
 api = NinjaAPI(title="game-editor API", version="0.1.0")
+
+VALID_THEMES = {choice for choice, _ in User.THEME_CHOICES}
 
 
 # --- Schemas ----------------------------------------------------------------------------------
 class Error(Schema):
     error: str
+
+
+class UserOut(Schema):
+    id: int
+    name: str
+    theme: str
+
+
+class UserUpdateIn(Schema):
+    """Partial update of the current user (e.g. their selected theme)."""
+
+    name: str | None = None
+    theme: str | None = None
 
 
 class CharacterOut(Schema):
@@ -72,6 +87,32 @@ def auth(request):
     Always returns HTTP 400 and is intentionally NOT called by the frontend yet.
     """
     return 400, {"error": "Authentication not implemented"}
+
+
+# --- Current user (single default user — no real auth yet) ------------------------------------
+def _current_user() -> User:
+    """The app's single user. Created on first access since there's no auth/login."""
+    user = User.objects.order_by("id").first()
+    if user is None:
+        user = User.objects.create()
+    return user
+
+
+@api.get("/user", response=UserOut, summary="Get the current user")
+def get_current_user(request):
+    return _current_user()
+
+
+@api.patch("/user", response=UserOut, summary="Update the current user")
+def update_current_user(request, payload: UserUpdateIn):
+    user = _current_user()
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        user.name = data["name"]
+    if "theme" in data and data["theme"] in VALID_THEMES:
+        user.theme = data["theme"]
+    user.save()
+    return user
 
 
 # --- Characters / Scenes (sidebars) -----------------------------------------------------------

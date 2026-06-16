@@ -6,7 +6,7 @@
   min-height: 0;
   color: var(--text);
   background:
-    radial-gradient(900px 600px at 50% -10%, rgba(255, 122, 26, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 50% -10%, color-mix(in srgb, var(--orange) 8%, transparent), transparent 60%),
     var(--bg-0);
 }
 
@@ -19,12 +19,12 @@
 
 .sidebar--left {
   border-right: 1px solid var(--line);
-  box-shadow: inset -1px 0 0 rgba(255, 122, 26, 0.25);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, var(--orange) 25%, transparent);
 }
 
 .sidebar--right {
   border-left: 1px solid var(--line);
-  box-shadow: inset 1px 0 0 rgba(43, 224, 122, 0.25);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--green) 25%, transparent);
 }
 
 .sidebar__title {
@@ -48,18 +48,18 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--orange);
-  border: 1px solid rgba(255, 122, 26, 0.5);
+  border: 1px solid color-mix(in srgb, var(--orange) 50%, transparent);
   background: repeating-linear-gradient(
     45deg,
-    rgba(255, 122, 26, 0.12),
-    rgba(255, 122, 26, 0.12) 5px,
-    rgba(255, 122, 26, 0.04) 5px,
-    rgba(255, 122, 26, 0.04) 10px
+    color-mix(in srgb, var(--orange) 12%, transparent),
+    color-mix(in srgb, var(--orange) 12%, transparent) 5px,
+    color-mix(in srgb, var(--orange) 4%, transparent) 5px,
+    color-mix(in srgb, var(--orange) 4%, transparent) 10px
   );
   padding: 0.3rem 0.55rem;
   border-radius: 5px;
   margin: 0.5rem 0 0.4rem;
-  box-shadow: 0 0 12px rgba(255, 122, 26, 0.2);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--orange) 20%, transparent);
 }
 
 .sidebar__list {
@@ -110,7 +110,7 @@
   padding: 0.5rem 0.8rem;
   font-size: 0.85rem;
   color: var(--text);
-  border: 1px solid rgba(255, 122, 26, 0.45);
+  border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
   border-radius: 999px;
   background: var(--bg-2);
   text-align: center;
@@ -153,7 +153,7 @@
 
 .dialogue-editor__error {
   color: #ffd9c2;
-  background: rgba(255, 122, 26, 0.12);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
   border: 1px solid var(--orange);
   border-radius: 10px;
   padding: 0.75rem 1rem;
@@ -195,18 +195,21 @@
   color: var(--muted);
 }
 
-/* The current dialogue blob — emphasized with a neon-orange glow. */
+/* The current dialogue blob — script-style: portrait, then centered name + dialogue. */
 .dialogue-blob {
   position: relative;
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.7rem;
   width: min(640px, 100%);
-  padding: 1.25rem;
+  padding: 1.5rem 1.75rem;
   background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
   border: 2px solid var(--orange);
   border-radius: 28px;
   box-shadow:
-    0 0 0 4px rgba(255, 122, 26, 0.15),
+    0 0 0 4px color-mix(in srgb, var(--orange) 15%, transparent),
     0 0 34px var(--orange-glow);
 }
 
@@ -220,7 +223,7 @@
   padding: 0.3rem 0.65rem;
   font-size: 0.62rem;
   color: var(--orange-soft);
-  border: 1px solid rgba(255, 122, 26, 0.5);
+  border: 1px solid color-mix(in srgb, var(--orange) 50%, transparent);
   border-radius: 7px;
   background: var(--bg-2);
   cursor: pointer;
@@ -235,11 +238,12 @@
 }
 
 .dialogue-blob__portrait {
-  flex: 0 0 90px;
-  height: 90px;
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
   border: 1px solid var(--green);
-  border-radius: 12px;
-  background: radial-gradient(circle at 50% 35%, rgba(43, 224, 122, 0.18), var(--bg-2));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--green) 18%, transparent), var(--bg-2));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,35 +252,39 @@
 
 .dialogue-blob__portrait-text {
   font-family: var(--font-display);
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: 800;
   color: var(--green-soft);
 }
 
 .dialogue-blob__body {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
+/* Centered, screenplay-style character cue. */
 .dialogue-blob__speaker {
   font-family: var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.9rem;
+  letter-spacing: 0.18em;
+  font-size: 0.95rem;
   color: var(--orange-soft);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
   text-shadow: 0 0 12px var(--orange-glow);
 }
 
 .dialogue-blob__text {
-  margin: 0 0 0.85rem;
-  line-height: 1.5;
+  margin: 0 auto 1rem;
+  max-width: 46ch;
+  line-height: 1.6;
+  font-size: 1.05rem;
   color: var(--text);
 }
 
 .dialogue-blob__meta {
   border-top: 1px dashed var(--line);
   padding-top: 0.65rem;
+  text-align: center;
 }
 
 .dialogue-blob__meta-label {
@@ -353,7 +361,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(43, 224, 122, 0.5);
+  border: 1px solid color-mix(in srgb, var(--green) 50%, transparent);
   border-radius: 999px;
   background: var(--bg-1);
   color: var(--green-soft);
@@ -378,9 +386,10 @@
   transform-origin: center center;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.8rem;
-  text-align: left;
+  text-align: center;
   color: var(--text);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -407,6 +416,7 @@
 .response-card__text {
   font-size: 0.85rem;
   color: var(--text);
+  text-align: center;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -436,7 +446,7 @@
 }
 
 .dialogue-form__select {
-  align-self: flex-start;
+  align-self: center;
   padding: 0.4rem 0.5rem;
   font-size: 0.85rem;
 }
@@ -458,6 +468,7 @@
 
 .dialogue-form__actions {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
 }
 
@@ -497,7 +508,7 @@
 .btn--add {
   border-style: dashed;
   color: var(--green-soft);
-  border-color: rgba(43, 224, 122, 0.6);
+  border-color: color-mix(in srgb, var(--green) 60%, transparent);
   background: transparent;
 }
 

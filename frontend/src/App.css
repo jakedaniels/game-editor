@@ -1,22 +1,60 @@
 :root {
-  /* Dark, video-game palette: deep background, neon orange + green accents. */
-  --bg-0: #0a0e16; /* page */
-  --bg-1: #141b2a; /* panels / cards */
-  --bg-2: #0c1019; /* canvas / stage */
-  --line: #283346; /* subtle borders */
-  --text: #e9eef8;
-  --muted: #8b99b2;
-
-  --orange: #ff7a1a;
-  --orange-soft: #ffb15c;
-  --orange-glow: rgba(255, 122, 26, 0.5);
-
-  --green: #2be07a;
-  --green-soft: #7af0ad;
-  --green-glow: rgba(43, 224, 122, 0.5);
-
   --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
   --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/*
+ * Themes. Each sets the full palette + page background and is selected by `data-theme`
+ * on <html> (persisted per-user). `--orange` is the primary accent, `--green` the secondary;
+ * other accent shades are derived with color-mix so every theme stays consistent.
+ */
+[data-theme='neon'] {
+  --bg-0: #0a0e16;
+  --bg-1: #141b2a;
+  --bg-2: #0c1019;
+  --line: #283346;
+  --text: #e9eef8;
+  --muted: #8b99b2;
+  --orange: #ff7a1a;
+  --orange-soft: #ffb15c;
+  --green: #2be07a;
+  --green-soft: #7af0ad;
+}
+
+[data-theme='aqua'] {
+  --bg-0: #06121a;
+  --bg-1: #0e2230;
+  --bg-2: #08161f;
+  --line: #1c3a4a;
+  --text: #e6f6ff;
+  --muted: #7fa6b8;
+  --orange: #19c3ff; /* primary accent (cyan) */
+  --orange-soft: #8fe3ff;
+  --green: #37f5c5; /* secondary accent (teal) */
+  --green-soft: #9bf8e3;
+}
+
+[data-theme='light'] {
+  --bg-0: #eef2f8;
+  --bg-1: #ffffff;
+  --bg-2: #f6f8fc;
+  --line: #d3dbe7;
+  --text: #1d2433;
+  --muted: #5b6678;
+  --orange: #e0640a;
+  --orange-soft: #b5530a;
+  --green: #11935a;
+  --green-soft: #0e7a4a;
+}
+
+/* Derived accent glows + page background, shared by all themes. */
+:root {
+  --orange-glow: color-mix(in srgb, var(--orange) 50%, transparent);
+  --green-glow: color-mix(in srgb, var(--green) 50%, transparent);
+  --page-bg:
+    radial-gradient(1100px 720px at 82% -12%, color-mix(in srgb, var(--orange) 12%, transparent), transparent 60%),
+    radial-gradient(960px 680px at -12% 112%, color-mix(in srgb, var(--green) 12%, transparent), transparent 55%),
+    var(--bg-0);
 }
 
 * {
@@ -33,10 +71,11 @@ body,
 body {
   font-family: var(--font-body);
   color: var(--text);
-  background:
-    radial-gradient(1100px 720px at 82% -12%, rgba(255, 122, 26, 0.12), transparent 60%),
-    radial-gradient(960px 680px at -12% 112%, rgba(43, 224, 122, 0.12), transparent 55%),
-    var(--bg-0);
+  background: var(--page-bg);
+  background-attachment: fixed;
+  transition:
+    background-color 0.25s,
+    color 0.25s;
 }
 
 .app {
@@ -54,7 +93,7 @@ body {
   background: rgba(8, 11, 18, 0.85);
   border-bottom: 1px solid var(--line);
   box-shadow:
-    0 1px 0 rgba(255, 122, 26, 0.3),
+    0 1px 0 color-mix(in srgb, var(--orange) 30%, transparent),
     0 10px 28px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(6px);
 }
@@ -104,6 +143,40 @@ body {
   background: var(--green);
   border-color: var(--green);
   box-shadow: 0 0 18px var(--green-glow);
+}
+
+/* Theme switcher button (pushed to the far right of the nav). */
+.app__theme {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9px;
+  color: var(--text);
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.app__theme:hover {
+  border-color: var(--orange);
+  box-shadow: 0 0 14px var(--orange-glow);
+}
+
+.app__theme-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--orange), var(--green));
+  box-shadow: 0 0 8px var(--orange-glow);
 }
 
 /* Page content fills the remaining height below the nav. */
@@ -171,8 +244,8 @@ body {
   width: 100%;
   background-color: var(--bg-2);
   background-image:
-    linear-gradient(rgba(43, 224, 122, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(43, 224, 122, 0.07) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--green) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--green) 8%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
   touch-action: none;
 }

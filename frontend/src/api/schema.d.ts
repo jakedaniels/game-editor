@@ -26,6 +26,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/user": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the current user */
+        get: operations["api_api_get_current_user"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the current user */
+        patch: operations["api_api_update_current_user"];
+        trace?: never;
+    };
     "/api/characters": {
         parameters: {
             query?: never;
@@ -116,6 +134,25 @@ export interface components {
         Error: {
             /** Error */
             error: string;
+        };
+        /** UserOut */
+        UserOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Theme */
+            theme: string;
+        };
+        /**
+         * UserUpdateIn
+         * @description Partial update of the current user (e.g. their selected theme).
+         */
+        UserUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Theme */
+            theme?: string | null;
         };
         /** CharacterOut */
         CharacterOut: {
@@ -218,6 +255,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_get_current_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+        };
+    };
+    api_api_update_current_user: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
                 };
             };
         };

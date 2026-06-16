@@ -1,6 +1,26 @@
 from django.db import models
 
 
+class User(models.Model):
+    """A user of the editor. No real auth yet — the app uses a single default user,
+    which is where per-user settings (like the UI theme) are persisted."""
+
+    THEME_NEON = "neon"
+    THEME_AQUA = "aqua"
+    THEME_LIGHT = "light"
+    THEME_CHOICES = [
+        (THEME_NEON, "Neon"),
+        (THEME_AQUA, "Aqua"),
+        (THEME_LIGHT, "Light"),
+    ]
+
+    name = models.CharField(max_length=50, default="Player")
+    theme = models.CharField(max_length=20, choices=THEME_CHOICES, default=THEME_NEON)
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Level(models.Model):
     """A level in the game. Contains an ordered set of scenes."""
 
