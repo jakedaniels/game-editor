@@ -61,6 +61,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List projects */
+        get: operations["api_api_list_projects"];
+        put?: never;
+        /** Create a project */
+        post: operations["api_api_create_project"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a project */
+        get: operations["api_api_get_project"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a project
+         * @description Partial update: rename, Settings (dimension/genre), Systems, or Preview (hud_layout).
+         */
+        patch: operations["api_api_update_project"];
+        trace?: never;
+    };
+    "/api/levels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List levels
+         * @description All levels, or just one project's levels when `project_id` is given.
+         */
+        get: operations["api_api_list_levels"];
+        put?: never;
+        /** Create a level */
+        post: operations["api_api_create_level"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/levels/{level_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a level */
+        get: operations["api_api_get_level"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a level */
+        patch: operations["api_api_update_level"];
+        trace?: never;
+    };
     "/api/scenes": {
         parameters: {
             query?: never;
@@ -160,6 +238,102 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * ProjectOut
+         * @description A game project plus its game-wide config (settings/systems/HUD).
+         */
+        ProjectOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Dimension */
+            dimension: string;
+            /** Genre */
+            genre: string;
+            /**
+             * Systems
+             * @default {}
+             */
+            systems: {
+                [key: string]: unknown;
+            };
+            /**
+             * Hud Layout
+             * @default {}
+             */
+            hud_layout: {
+                [key: string]: unknown;
+            };
+        };
+        /** ProjectCreateIn */
+        ProjectCreateIn: {
+            /**
+             * Name
+             * @default New Project
+             */
+            name: string;
+            /** Order */
+            order?: number | null;
+        };
+        /**
+         * ProjectUpdateIn
+         * @description Partial update — omitted fields are left unchanged. One PATCH serves rename,
+         *     Settings (dimension/genre), Systems, and Preview (hud_layout) saves.
+         */
+        ProjectUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Order */
+            order?: number | null;
+            /** Dimension */
+            dimension?: string | null;
+            /** Genre */
+            genre?: string | null;
+            /** Systems */
+            systems?: {
+                [key: string]: unknown;
+            } | null;
+            /** Hud Layout */
+            hud_layout?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** LevelOut */
+        LevelOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Order */
+            order: number;
+            /** Project Id */
+            project_id?: number | null;
+        };
+        /** LevelCreateIn */
+        LevelCreateIn: {
+            /**
+             * Name
+             * @default New Level
+             */
+            name: string;
+            /** Order */
+            order?: number | null;
+            /** Project Id */
+            project_id?: number | null;
+        };
+        /**
+         * LevelUpdateIn
+         * @description Partial update of a level (e.g. its title).
+         */
+        LevelUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Order */
+            order?: number | null;
         };
         /** SceneOut */
         SceneOut: {
@@ -319,6 +493,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CharacterOut"][];
+                };
+            };
+        };
+    };
+    api_api_list_projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"][];
+                };
+            };
+        };
+    };
+    api_api_create_project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+        };
+    };
+    api_api_get_project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+        };
+    };
+    api_api_update_project: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+        };
+    };
+    api_api_list_levels: {
+        parameters: {
+            query?: {
+                project_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"][];
+                };
+            };
+        };
+    };
+    api_api_create_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LevelCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"];
+                };
+            };
+        };
+    };
+    api_api_get_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                level_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"];
+                };
+            };
+        };
+    };
+    api_api_update_level: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                level_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LevelUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"];
                 };
             };
         };

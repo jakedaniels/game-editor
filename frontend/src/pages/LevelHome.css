@@ -1,0 +1,94 @@
+.level-home {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.level-home__back {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.level-home__back:hover {
+  color: var(--orange-soft);
+}
+
+.level-home__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  color: var(--orange-soft);
+  text-shadow: 0 0 16px var(--orange-glow);
+  margin: 0.75rem 0 1.75rem;
+}
+
+.level-home__error {
+  color: var(--orange-soft);
+}
+
+.level-home__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.lh-tile {
+  width: 220px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 1.5rem;
+  transition:
+    transform 0.12s,
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.lh-tile:not(.lh-tile--soon):hover {
+  transform: translateY(-4px);
+  border-color: var(--orange);
+  box-shadow: 0 0 28px var(--orange-glow);
+}
+
+.lh-tile__icon {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+
+.lh-tile__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 1.05rem;
+  color: var(--orange-soft);
+}
+
+.lh-tile__desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Placeholder tiles for future level sections. */
+.lh-tile--soon {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+.lh-tile--soon .lh-tile__title {
+  color: var(--muted);
+}

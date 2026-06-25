@@ -1,0 +1,143 @@
+.projects-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2.5rem 2rem;
+}
+
+.projects-page__hero {
+  margin-bottom: 1.75rem;
+}
+
+.projects-page__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  margin: 0;
+  background: linear-gradient(90deg, var(--orange), var(--green));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.projects-page__subtitle {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.projects-page__error {
+  color: var(--orange-soft);
+}
+
+.projects-page__empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.project-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 760px;
+}
+
+.projects-page__add {
+  margin-top: 1rem;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.project-row:hover {
+  border-color: var(--orange);
+  box-shadow: 0 0 18px var(--orange-glow);
+}
+
+.project-row__name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 1rem;
+  color: var(--orange-soft);
+  text-decoration: none;
+}
+
+.project-row__name:hover {
+  text-shadow: 0 0 12px var(--orange-glow);
+}
+
+.project-row__icon {
+  font-size: 1.3rem;
+}
+
+.project-row__tag {
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  color: var(--green-soft);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--green) 40%, transparent);
+}
+
+.project-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.project-row__open {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.project-row__open:hover {
+  color: var(--green-soft);
+}
+
+.project-row__edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.project-row__input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.45rem 0.6rem;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--orange);
+  border-radius: 8px;
+}
+
+.project-row__input:focus {
+  outline: none;
+  box-shadow: 0 0 12px var(--orange-glow);
+}

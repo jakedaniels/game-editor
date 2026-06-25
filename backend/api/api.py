@@ -7,7 +7,9 @@ The schemas here drive the OpenAPI spec, which the frontend turns into typed TS
 from django.shortcuts import get_object_or_404
 from ninja import NinjaAPI, Schema
 
-from .models import Character, Dialogue, Scene, User
+from typing import Any
+
+from .models import Character, Dialogue, Level, Project, Scene, User
 
 api = NinjaAPI(title="game-editor API", version="0.1.0")
 
@@ -35,6 +37,55 @@ class UserUpdateIn(Schema):
 class CharacterOut(Schema):
     id: int
     name: str
+
+
+class ProjectOut(Schema):
+    """A game project plus its game-wide config (settings/systems/HUD)."""
+
+    id: int
+    name: str
+    order: int
+    dimension: str
+    genre: str
+    systems: dict[str, Any] = {}  # ArchitectState (per-system enabled + answers)
+    hud_layout: dict[str, Any] = {}  # HudLayout ({systemId: {x, y}})
+
+
+class ProjectCreateIn(Schema):
+    name: str = "New Project"
+    order: int | None = None  # None => appended after the current last project
+
+
+class ProjectUpdateIn(Schema):
+    """Partial update — omitted fields are left unchanged. One PATCH serves rename,
+    Settings (dimension/genre), Systems, and Preview (hud_layout) saves."""
+
+    name: str | None = None
+    order: int | None = None
+    dimension: str | None = None
+    genre: str | None = None
+    systems: dict[str, Any] | None = None
+    hud_layout: dict[str, Any] | None = None
+
+
+class LevelOut(Schema):
+    id: int
+    name: str
+    order: int
+    project_id: int | None = None
+
+
+class LevelUpdateIn(Schema):
+    """Partial update of a level (e.g. its title)."""
+
+    name: str | None = None
+    order: int | None = None
+
+
+class LevelCreateIn(Schema):
+    name: str = "New Level"
+    order: int | None = None  # None => appended after the current last level
+    project_id: int | None = None
 
 
 class SceneOut(Schema):
@@ -119,6 +170,88 @@ def update_current_user(request, payload: UserUpdateIn):
 @api.get("/characters", response=list[CharacterOut], summary="List characters")
 def list_characters(request):
     return list(Character.objects.all())
+
+
+# --- Projects (top-level game container) ------------------------------------------------------
+@api.get("/projects", response=list[ProjectOut], summary="List projects")
+def list_projects(request):
+    return list(Project.objects.all())
+
+
+@api.post("/projects", response={201: ProjectOut}, summary="Create a project")
+def create_project(request, payload: ProjectCreateIn):
+    if payload.order is not None:
+        order = payload.order
+    else:
+        last = Project.objects.order_by("-order").first()
+        order = (last.order + 1) if last else 0
+    project = Project.objects.create(name=payload.name, order=order)
+    return 201, project
+
+
+@api.get("/projects/{int:project_id}", response=ProjectOut, summary="Get a project")
+def get_project(request, project_id: int):
+    return get_object_or_404(Project, id=project_id)
+
+
+@api.patch("/projects/{int:project_id}", response=ProjectOut, summary="Update a project")
+def update_project(request, project_id: int, payload: ProjectUpdateIn):
+    """Partial update: rename, Settings (dimension/genre), Systems, or Preview (hud_layout)."""
+    project = get_object_or_404(Project, id=project_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        project.name = data["name"]
+    if "order" in data and data["order"] is not None:
+        project.order = data["order"]
+    if "dimension" in data and data["dimension"] is not None:
+        project.dimension = data["dimension"]
+    if "genre" in data and data["genre"] is not None:
+        project.genre = data["genre"]
+    if "systems" in data and data["systems"] is not None:
+        project.systems = data["systems"]
+    if "hud_layout" in data and data["hud_layout"] is not None:
+        project.hud_layout = data["hud_layout"]
+    project.save()
+    return project
+
+
+@api.get("/levels", response=list[LevelOut], summary="List levels")
+def list_levels(request, project_id: int | None = None):
+    """All levels, or just one project's levels when `project_id` is given."""
+    qs = Level.objects.all()
+    if project_id is not None:
+        qs = qs.filter(project_id=project_id)
+    return list(qs)
+
+
+@api.post("/levels", response={201: LevelOut}, summary="Create a level")
+def create_level(request, payload: LevelCreateIn):
+    if payload.order is not None:
+        order = payload.order
+    else:
+        last = Level.objects.order_by("-order").first()
+        order = (last.order + 1) if last else 0
+    level = Level.objects.create(
+        name=payload.name, order=order, project_id=payload.project_id
+    )
+    return 201, level
+
+
+@api.get("/levels/{int:level_id}", response=LevelOut, summary="Get a level")
+def get_level(request, level_id: int):
+    return get_object_or_404(Level, id=level_id)
+
+
+@api.patch("/levels/{int:level_id}", response=LevelOut, summary="Update a level")
+def update_level(request, level_id: int, payload: LevelUpdateIn):
+    level = get_object_or_404(Level, id=level_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        level.name = data["name"]
+    if "order" in data and data["order"] is not None:
+        level.order = data["order"]
+    level.save()
+    return level
 
 
 @api.get("/scenes", response=list[SceneOut], summary="List scenes")

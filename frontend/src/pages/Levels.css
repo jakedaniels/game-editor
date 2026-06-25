@@ -1,0 +1,120 @@
+.levels-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.levels-page__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--orange-soft);
+  text-shadow: 0 0 14px var(--orange-glow);
+  margin: 0 0 1.5rem;
+}
+
+.levels-page__error {
+  color: var(--orange-soft);
+}
+
+.levels-page__empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* List view */
+.level-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 760px;
+}
+
+.levels-page__add {
+  margin-top: 1rem;
+}
+
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.level-row:hover {
+  border-color: var(--orange);
+  box-shadow: 0 0 18px var(--orange-glow);
+}
+
+.level-row__name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 1rem;
+  color: var(--orange-soft);
+  text-decoration: none;
+}
+
+.level-row__name:hover {
+  text-shadow: 0 0 12px var(--orange-glow);
+}
+
+.level-row__icon {
+  font-size: 1.3rem;
+}
+
+.level-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.level-row__open {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.level-row__open:hover {
+  color: var(--green-soft);
+}
+
+/* Inline rename form */
+.level-row__edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.level-row__input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.45rem 0.6rem;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--orange);
+  border-radius: 8px;
+}
+
+.level-row__input:focus {
+  outline: none;
+  box-shadow: 0 0 12px var(--orange-glow);
+}

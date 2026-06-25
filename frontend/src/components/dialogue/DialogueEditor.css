@@ -134,6 +134,23 @@
   overflow-y: auto;
 }
 
+.dialogue-editor__crumb {
+  align-self: flex-start;
+}
+
+.dialogue-editor__back-link {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.dialogue-editor__back-link:hover {
+  color: var(--orange-soft);
+}
+
 .dialogue-editor__scene-title {
   font-family: var(--font-display);
   text-transform: uppercase;
@@ -470,49 +487,4 @@
   display: flex;
   justify-content: center;
   gap: 0.5rem;
-}
-
-.btn {
-  font-family: var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.45rem 0.95rem;
-  font-size: 0.72rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-1);
-  color: var(--text);
-  cursor: pointer;
-  transition:
-    box-shadow 0.12s,
-    border-color 0.12s,
-    background 0.12s;
-}
-
-.btn:hover {
-  border-color: var(--muted);
-}
-
-.btn--primary {
-  background: var(--orange);
-  border-color: var(--orange);
-  color: #2a1303;
-  box-shadow: 0 0 16px var(--orange-glow);
-}
-
-.btn--primary:hover {
-  background: var(--orange-soft);
-  border-color: var(--orange-soft);
-}
-
-.btn--add {
-  border-style: dashed;
-  color: var(--green-soft);
-  border-color: color-mix(in srgb, var(--green) 60%, transparent);
-  background: transparent;
-}
-
-.btn--add:hover {
-  border-color: var(--green);
-  box-shadow: 0 0 16px var(--green-glow);
 }

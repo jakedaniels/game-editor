@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { api, type Character, type DialogueDetail, type Scene } from '../api/client';
 import { ScenesSidebar } from '../components/dialogue/ScenesSidebar';
 import { CharactersSidebar } from '../components/dialogue/CharactersSidebar';
@@ -8,6 +9,7 @@ import { ResponseWheel } from '../components/dialogue/ResponseWheel';
 import '../components/dialogue/DialogueEditor.css';
 
 export default function DialogueEditorPage() {
+  const { projectId, levelId } = useParams();
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [sceneId, setSceneId] = useState<number | null>(null);
   const [currentId, setCurrentId] = useState<number | null>(null);
@@ -21,14 +23,18 @@ export default function DialogueEditorPage() {
     api.GET('/api/characters').then(({ data }) => data && setCharacters(data));
   }, []);
 
-  // Load scenes and select the first one.
+  // Load this level's scenes and select the first one.
   useEffect(() => {
     api.GET('/api/scenes').then(({ data, error }) => {
       if (error || !data) return setError('Failed to load scenes');
-      setScenes(data);
-      if (data.length > 0) setSceneId(data[0].id);
+      const levelScenes = levelId
+        ? data.filter((s) => String(s.level_id) === levelId)
+        : data;
+      setError(null);
+      setScenes(levelScenes);
+      setSceneId(levelScenes[0]?.id ?? null);
     });
-  }, []);
+  }, [levelId]);
 
   // When the scene changes, load that scene's root dialogue (the page is scoped to a scene).
   useEffect(() => {
@@ -93,6 +99,15 @@ export default function DialogueEditorPage() {
       <ScenesSidebar scenes={scenes} selectedId={sceneId} onSelect={setSceneId} />
 
       <section className="dialogue-editor__stage">
+        <div className="dialogue-editor__crumb">
+          <Link
+            to={`/projects/${projectId}/levels/${levelId}`}
+            className="dialogue-editor__back-link"
+          >
+            ← Level
+          </Link>
+        </div>
+
         {selectedScene && (
           <div className="dialogue-editor__scene-title">
             {selectedScene.level_name} · {selectedScene.name}

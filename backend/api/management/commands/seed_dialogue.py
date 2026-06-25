@@ -6,7 +6,7 @@ Idempotent: clears existing dialogues and recreates fresh trees. Run with:
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from api.models import Character, Dialogue, Level, Scene
+from api.models import Character, Dialogue, Level, Project, Scene
 
 
 class Command(BaseCommand):
@@ -17,7 +17,15 @@ class Command(BaseCommand):
         # Reset dialogues for a clean, repeatable seed.
         Dialogue.objects.all().delete()
 
-        level, _ = Level.objects.get_or_create(name="Level 12", defaults={"order": 12})
+        project, _ = Project.objects.get_or_create(
+            name="Demo Game", defaults={"order": 0, "dimension": "2d", "genre": "rpg"}
+        )
+        level, _ = Level.objects.get_or_create(
+            name="Level 12", defaults={"order": 12, "project": project}
+        )
+        if level.project_id is None:
+            level.project = project
+            level.save(update_fields=["project"])
         scene5, _ = Scene.objects.get_or_create(level=level, name="Scene 5", defaults={"order": 5})
         scene6, _ = Scene.objects.get_or_create(level=level, name="Scene 6", defaults={"order": 6})
 

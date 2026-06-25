@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { api, THEMES, type Theme } from './api/client';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectHomePage from './pages/ProjectHomePage';
+import ProjectSettingsPage from './pages/ProjectSettingsPage';
+import ProjectSystemsPage from './pages/ProjectSystemsPage';
+import ProjectPreviewPage from './pages/ProjectPreviewPage';
+import LevelsPage from './pages/LevelsPage';
+import LevelHomePage from './pages/LevelHomePage';
 import ShapeEditorPage from './pages/ShapeEditorPage';
 import DialogueEditorPage from './pages/DialogueEditorPage';
+import CharactersPage from './pages/CharactersPage';
 
-const THEME_LABELS: Record<Theme, string> = { neon: 'Neon', aqua: 'Aqua', light: 'Light' };
+const THEME_LABELS: Record<Theme, string> = {
+  neon: 'Neon',
+  aqua: 'Aqua',
+  light: 'Light',
+  studio: 'Studio',
+};
 
 function navClass({ isActive }: { isActive: boolean }) {
   return 'app__link' + (isActive ? ' app__link--active' : '');
@@ -36,13 +49,15 @@ export default function App() {
   return (
     <div className="app">
       <header className="app__nav">
-        <span className="app__title">game-editor</span>
+        <Link to="/" className="app__title">
+          game-editor
+        </Link>
         <nav className="app__links">
           <NavLink to="/" end className={navClass}>
-            Shapes
+            Projects
           </NavLink>
-          <NavLink to="/dialogue" className={navClass}>
-            Dialogue
+          <NavLink to="/characters" className={navClass}>
+            Characters
           </NavLink>
         </nav>
         <button
@@ -57,8 +72,22 @@ export default function App() {
       </header>
       <main className="app__content">
         <Routes>
-          <Route path="/" element={<ShapeEditorPage />} />
-          <Route path="/dialogue" element={<DialogueEditorPage />} />
+          <Route path="/" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectHomePage />}>
+            <Route index element={<Navigate to="settings" replace />} />
+            <Route path="settings" element={<ProjectSettingsPage />} />
+            <Route path="systems" element={<ProjectSystemsPage />} />
+            <Route path="preview" element={<ProjectPreviewPage />} />
+            <Route path="levels" element={<LevelsPage />} />
+            <Route path="characters" element={<CharactersPage />} />
+          </Route>
+          <Route path="/projects/:projectId/levels/:levelId" element={<LevelHomePage />} />
+          <Route
+            path="/projects/:projectId/levels/:levelId/dialogue"
+            element={<DialogueEditorPage />}
+          />
+          <Route path="/characters" element={<CharactersPage />} />
+          <Route path="/shapes" element={<ShapeEditorPage />} />
         </Routes>
       </main>
     </div>

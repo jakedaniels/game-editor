@@ -8,10 +8,12 @@ class User(models.Model):
     THEME_NEON = "neon"
     THEME_AQUA = "aqua"
     THEME_LIGHT = "light"
+    THEME_STUDIO = "studio"
     THEME_CHOICES = [
         (THEME_NEON, "Neon"),
         (THEME_AQUA, "Aqua"),
         (THEME_LIGHT, "Light"),
+        (THEME_STUDIO, "Studio"),
     ]
 
     name = models.CharField(max_length=50, default="Player")
@@ -21,9 +23,37 @@ class User(models.Model):
         return self.name
 
 
-class Level(models.Model):
-    """A level in the game. Contains an ordered set of scenes."""
+class Project(models.Model):
+    """A game project — the top-level container above Levels.
 
+    Holds game-wide configuration captured by the Settings/Systems/Preview tabs:
+    `dimension` and `genre` are first-class columns (stable, queryable), while the
+    evolving per-system answers (`systems`) and HUD layout (`hud_layout`) live in JSONB
+    because their shape is defined by frontend code and changes often.
+    """
+
+    name = models.CharField(max_length=100, default="New Project")
+    order = models.PositiveIntegerField(default=0)
+    dimension = models.CharField(max_length=2, blank=True, default="")  # "2d" | "3d" | ""
+    genre = models.CharField(max_length=30, blank=True, default="")
+    systems = models.JSONField(default=dict, blank=True)  # ArchitectState: per-system enabled+answers
+    hud_layout = models.JSONField(default=dict, blank=True)  # HudLayout: {systemId: {x, y}}
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Level(models.Model):
+    """A level in the game. Belongs to a project; contains an ordered set of scenes."""
+
+    project = models.ForeignKey(
+        Project, null=True, blank=True, on_delete=models.CASCADE, related_name="levels"
+    )
     name = models.CharField(max_length=100)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

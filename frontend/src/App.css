@@ -47,6 +47,20 @@
   --green-soft: #0e7a4a;
 }
 
+/* "Studio" — the clean teal/light look ported from the Lovable game-architect prototype. */
+[data-theme='studio'] {
+  --bg-0: #f4f7fb;
+  --bg-1: #ffffff;
+  --bg-2: #eef2f7;
+  --line: #d7deea;
+  --text: #1c2433;
+  --muted: #5f6b7e;
+  --orange: #0d9488; /* primary accent (teal brand) */
+  --orange-soft: #0f766e;
+  --green: #2563eb; /* secondary accent (blue) */
+  --green-soft: #1d4ed8;
+}
+
 /* Derived accent glows + page background, shared by all themes. */
 :root {
   --orange-glow: color-mix(in srgb, var(--orange) 50%, transparent);
@@ -104,6 +118,7 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-size: 1.05rem;
+  text-decoration: none;
   background: linear-gradient(90deg, var(--orange), var(--green));
   -webkit-background-clip: text;
   background-clip: text;
@@ -253,4 +268,50 @@ body {
 /* Neon glow on drawn shape outlines. */
 .shape-outline {
   filter: drop-shadow(0 0 4px var(--green-glow));
+}
+
+/* --- Buttons (global) --- */
+.btn {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.72rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-1);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    box-shadow 0.12s,
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.btn:hover {
+  border-color: var(--muted);
+}
+
+.btn--primary {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #2a1303;
+  box-shadow: 0 0 16px var(--orange-glow);
+}
+
+.btn--primary:hover {
+  background: var(--orange-soft);
+  border-color: var(--orange-soft);
+}
+
+.btn--add {
+  border-style: dashed;
+  color: var(--green-soft);
+  border-color: color-mix(in srgb, var(--green) 60%, transparent);
+  background: transparent;
+}
+
+.btn--add:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 16px var(--green-glow);
 }
