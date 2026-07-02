@@ -93,6 +93,13 @@ export function ResponseWheel({ responses, onSelect }: ResponseWheelProps) {
       style={styleFor(i)}
       onClick={() => onSelect(r.id)}
     >
+      <span className="response-card__avatar" aria-hidden>
+        {r.character?.image_url ? (
+          <img className="response-card__avatar-img" src={r.character.image_url} alt="" />
+        ) : (
+          (r.character?.name?.[0] ?? '?').toUpperCase()
+        )}
+      </span>
       <span className="response-card__speaker">{r.character?.name ?? 'Unknown'}</span>
       <span className="response-card__text">{r.text || '(no text)'}</span>
     </button>

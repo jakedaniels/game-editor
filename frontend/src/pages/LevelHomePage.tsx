@@ -34,11 +34,11 @@ export default function LevelHomePage() {
           <span className="lh-tile__desc">Scenes & branching dialogue</span>
         </Link>
 
-        <div className="lh-tile lh-tile--soon" aria-disabled="true">
+        <Link to={`/projects/${projectId}/levels/${levelId}/characters`} className="lh-tile">
           <span className="lh-tile__icon">🎭</span>
           <span className="lh-tile__title">Characters</span>
-          <span className="lh-tile__desc">Coming soon</span>
-        </div>
+          <span className="lh-tile__desc">Cast &amp; their dialogue</span>
+        </Link>
 
         <div className="lh-tile lh-tile--soon" aria-disabled="true">
           <span className="lh-tile__icon">⚙️</span>

@@ -5,11 +5,22 @@ The schemas here drive the OpenAPI spec, which the frontend turns into typed TS
 (`npm run gen:api` -> frontend/src/api/schema.d.ts).
 """
 from django.shortcuts import get_object_or_404
-from ninja import NinjaAPI, Schema
+from ninja import File, NinjaAPI, Schema
+from ninja.files import UploadedFile
+
+from .services import imagegen, storage
 
 from typing import Any
 
-from .models import Character, Dialogue, Level, Project, Scene, User
+from .models import (
+    Character,
+    CharacterRelationship,
+    Dialogue,
+    Level,
+    Project,
+    Scene,
+    User,
+)
 
 api = NinjaAPI(title="game-editor API", version="0.1.0")
 
@@ -37,6 +48,57 @@ class UserUpdateIn(Schema):
 class CharacterOut(Schema):
     id: int
     name: str
+    description: str = ""
+    image_url: str = ""  # derived (presigned) from the character's image_key at read time
+
+    @staticmethod
+    def resolve_image_url(obj) -> str:
+        key = obj.get("image_key", "") if isinstance(obj, dict) else getattr(obj, "image_key", "")
+        return storage.view_url(key)
+
+
+class RelatedCharacterOut(Schema):
+    """A character related to another, plus the relationship's label and edge id."""
+
+    relationship_id: int
+    id: int
+    name: str
+    relationship: str
+
+
+class CharacterDetailOut(Schema):
+    """A single character with its description, portrait, and relationships."""
+
+    id: int
+    name: str
+    description: str = ""
+    image_url: str = ""
+    image_key: str = ""
+    project_id: int | None = None
+    related: list[RelatedCharacterOut] = []
+
+
+class CharacterCreateIn(Schema):
+    name: str = "New Character"
+    description: str = ""
+    project_id: int | None = None
+
+
+class CharacterUpdateIn(Schema):
+    """Partial update — omitted fields are left unchanged."""
+
+    name: str | None = None
+    description: str | None = None
+
+
+class RelationshipCreateIn(Schema):
+    other_id: int
+    relationship: str = ""
+
+
+class GenerateImageIn(Schema):
+    # Optional; defaults to a prompt built from the character's name + description.
+    prompt: str | None = None
 
 
 class ProjectOut(Schema):
@@ -88,6 +150,23 @@ class LevelCreateIn(Schema):
     project_id: int | None = None
 
 
+class LevelCharacterLineOut(Schema):
+    id: int
+    text: str
+    scene_id: int | None = None
+    scene_name: str = ""
+
+
+class LevelCharacterOut(Schema):
+    """A character appearing in a level (deduced from dialogue), with the lines they speak."""
+
+    id: int
+    name: str
+    description: str = ""
+    image_url: str = ""
+    lines: list[LevelCharacterLineOut] = []
+
+
 class SceneOut(Schema):
     id: int
     name: str
@@ -112,6 +191,15 @@ class DialogueDetailOut(Schema):
     parent_id: int | None = None
     character: CharacterOut | None = None
     responses: list[DialogueSummaryOut] = []
+
+
+class DialogueNodeOut(Schema):
+    """A single node in a scene's flat dialogue list — enough to lay out the whole tree."""
+
+    id: int
+    parent_id: int | None = None
+    text: str
+    character: CharacterOut | None = None
 
 
 class DialogueIn(Schema):
@@ -166,10 +254,165 @@ def update_current_user(request, payload: UserUpdateIn):
     return user
 
 
-# --- Characters / Scenes (sidebars) -----------------------------------------------------------
+# --- Characters -------------------------------------------------------------------------------
+def _related_for(character: Character) -> list[dict]:
+    """Directed relationships: this character's *outgoing* edges (from → to)."""
+    rels = (
+        CharacterRelationship.objects.filter(from_character=character)
+        .select_related("to_character")
+        .order_by("to_character__name")
+    )
+    return [
+        {
+            "relationship_id": rel.id,
+            "id": rel.to_character_id,
+            "name": rel.to_character.name,
+            "relationship": rel.relationship,
+        }
+        for rel in rels
+    ]
+
+
+def _portrait_key_prefix(character: Character) -> str:
+    """S3 folder for a character's portraits: Characters/Project-<pid>/character-<cid>.
+
+    Multiple images can live in this folder (each upload gets a unique filename).
+    """
+    project = f"Project-{character.project_id}" if character.project_id else "Project-none"
+    return f"Characters/{project}/character-{character.id}"
+
+
+def _character_detail(character: Character) -> dict:
+    return {
+        "id": character.id,
+        "name": character.name,
+        "description": character.description,
+        "image_url": storage.view_url(character.image_key),
+        "image_key": character.image_key,
+        "project_id": character.project_id,
+        "related": _related_for(character),
+    }
+
+
 @api.get("/characters", response=list[CharacterOut], summary="List characters")
-def list_characters(request):
-    return list(Character.objects.all())
+def list_characters(request, project_id: int | None = None):
+    """All characters, or just one project's characters when `project_id` is given."""
+    qs = Character.objects.all()
+    if project_id is not None:
+        qs = qs.filter(project_id=project_id)
+    return list(qs)
+
+
+@api.post("/characters", response={201: CharacterOut}, summary="Create a character")
+def create_character(request, payload: CharacterCreateIn):
+    character = Character.objects.create(
+        name=payload.name, description=payload.description, project_id=payload.project_id
+    )
+    return 201, character
+
+
+@api.get("/characters/{int:character_id}", response=CharacterDetailOut, summary="Get a character")
+def get_character(request, character_id: int):
+    return _character_detail(get_object_or_404(Character, id=character_id))
+
+
+@api.patch("/characters/{int:character_id}", response=CharacterDetailOut, summary="Update a character")
+def update_character(request, character_id: int, payload: CharacterUpdateIn):
+    character = get_object_or_404(Character, id=character_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        character.name = data["name"]
+    if "description" in data and data["description"] is not None:
+        character.description = data["description"]
+    character.save()
+    return _character_detail(character)
+
+
+@api.post(
+    "/characters/{int:character_id}/relationships",
+    response={201: CharacterDetailOut, 400: Error, 404: Error},
+    summary="Add or update a relationship",
+)
+def add_relationship(request, character_id: int, payload: RelationshipCreateIn):
+    """Directed: creates an edge from this character to `other_id`. Shows only on this
+    character's page. If the same directed edge already exists, its label is updated."""
+    character = get_object_or_404(Character, id=character_id)
+    if payload.other_id == character_id:
+        return 400, {"error": "A character cannot relate to itself"}
+    other = Character.objects.filter(id=payload.other_id).first()
+    if other is None:
+        return 404, {"error": "Other character not found"}
+    if other.project_id != character.project_id:
+        return 400, {"error": "Characters must be in the same project"}
+
+    CharacterRelationship.objects.update_or_create(
+        from_character=character,
+        to_character=other,
+        defaults={"relationship": payload.relationship},
+    )
+    return 201, _character_detail(character)
+
+
+@api.delete(
+    "/characters/{int:character_id}/relationships/{int:relationship_id}",
+    response={204: None},
+    summary="Remove a relationship",
+)
+def delete_relationship(request, character_id: int, relationship_id: int):
+    get_object_or_404(CharacterRelationship, id=relationship_id).delete()
+    return 204, None
+
+
+@api.post(
+    "/characters/{int:character_id}/image",
+    response={200: CharacterDetailOut, 400: Error, 503: Error},
+    summary="Upload a character portrait",
+)
+def upload_character_image(request, character_id: int, file: UploadedFile = File(...)):
+    """Upload an image file for the character; stores it in S3 and saves the public URL."""
+    character = get_object_or_404(Character, id=character_id)
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        return 400, {"error": "File must be an image."}
+    try:
+        _url, key = storage.upload_image(
+            file.read(), content_type, key_prefix=_portrait_key_prefix(character)
+        )
+    except storage.StorageNotConfigured as exc:
+        return 503, {"error": str(exc)}
+    except storage.StorageError as exc:
+        return 400, {"error": f"Upload failed: {exc}"}
+    character.image_key = key
+    character.save(update_fields=["image_key", "updated_at"])
+    return 200, _character_detail(character)
+
+
+@api.post(
+    "/characters/{int:character_id}/generate-image",
+    response={200: CharacterDetailOut, 400: Error, 503: Error},
+    summary="Generate a character portrait with AI",
+)
+def generate_character_image(request, character_id: int, payload: GenerateImageIn):
+    """Generate a portrait with FLUX (fal.ai), upload it to S3, and save the key on the character."""
+    character = get_object_or_404(Character, id=character_id)
+    prompt = (payload.prompt or "").strip() or imagegen.default_prompt(
+        character.name, character.description
+    )
+    try:
+        data, content_type = imagegen.generate_image(prompt)
+        _url, key = storage.upload_image(
+            data, content_type, key_prefix=_portrait_key_prefix(character)
+        )
+    except (imagegen.GenerationNotConfigured, storage.StorageNotConfigured) as exc:
+        return 503, {"error": str(exc)}
+    except (imagegen.GenerationError, storage.StorageError) as exc:
+        return 400, {"error": str(exc)}
+    character.image_key = key
+    character.save(update_fields=["image_key", "updated_at"])
+    return 200, _character_detail(character)
+
+
+# --- Scenes (dialogue sidebars) ---------------------------------------------------------------
 
 
 # --- Projects (top-level game container) ------------------------------------------------------
@@ -254,6 +497,44 @@ def update_level(request, level_id: int, payload: LevelUpdateIn):
     return level
 
 
+@api.get(
+    "/levels/{int:level_id}/characters",
+    response=list[LevelCharacterOut],
+    summary="Characters in a level (deduced from dialogue)",
+)
+def level_characters(request, level_id: int):
+    """The level's cast, deduced from which characters speak its dialogue, each with the
+    lines they speak (across the level's scenes). Ordered by character name."""
+    get_object_or_404(Level, id=level_id)
+    dialogues = (
+        Dialogue.objects.filter(scene__level_id=level_id, character__isnull=False)
+        .select_related("character", "scene")
+        .order_by("character__name", "scene__order", "id")
+    )
+    by_char: dict[int, dict] = {}
+    for d in dialogues:
+        c = d.character
+        entry = by_char.get(c.id)
+        if entry is None:
+            entry = {
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "image_url": storage.view_url(c.image_key),
+                "lines": [],
+            }
+            by_char[c.id] = entry
+        entry["lines"].append(
+            {
+                "id": d.id,
+                "text": d.text,
+                "scene_id": d.scene_id,
+                "scene_name": d.scene.name if d.scene else "",
+            }
+        )
+    return list(by_char.values())
+
+
 @api.get("/scenes", response=list[SceneOut], summary="List scenes")
 def list_scenes(request):
     scenes = Scene.objects.select_related("level").all()
@@ -266,6 +547,19 @@ def list_scenes(request):
         }
         for s in scenes
     ]
+
+
+@api.get(
+    "/scenes/{int:scene_id}/dialogues",
+    response=list[DialogueNodeOut],
+    summary="All dialogue nodes in a scene (flat, for the tree view)",
+)
+def scene_dialogue_tree(request, scene_id: int):
+    """Every dialogue node in a scene as a flat list — the frontend builds the tree from
+    `id`/`parent_id`. One JOIN (no N+1); each node's character serializes like everywhere else
+    (presigned image URL via CharacterOut)."""
+    get_object_or_404(Scene, id=scene_id)
+    return list(Dialogue.objects.filter(scene_id=scene_id).select_related("character"))
 
 
 # --- Dialogues (branching tree) ---------------------------------------------------------------

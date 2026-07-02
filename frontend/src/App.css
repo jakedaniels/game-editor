@@ -9,29 +9,29 @@
  * other accent shades are derived with color-mix so every theme stays consistent.
  */
 [data-theme='neon'] {
-  --bg-0: #0a0e16;
-  --bg-1: #141b2a;
-  --bg-2: #0c1019;
-  --line: #283346;
+  --bg-0: #0d121c;
+  --bg-1: #161d2c;
+  --bg-2: #11161f;
+  --line: #2a3447;
   --text: #e9eef8;
-  --muted: #8b99b2;
-  --orange: #ff7a1a;
-  --orange-soft: #ffb15c;
-  --green: #2be07a;
-  --green-soft: #7af0ad;
+  --muted: #8d9ab1;
+  --orange: #ec8a4c; /* softened from neon-hot */
+  --orange-soft: #f3b483;
+  --green: #4fc78c; /* softened from neon-hot */
+  --green-soft: #8fe0b4;
 }
 
 [data-theme='aqua'] {
-  --bg-0: #06121a;
-  --bg-1: #0e2230;
-  --bg-2: #08161f;
-  --line: #1c3a4a;
+  --bg-0: #0a161e;
+  --bg-1: #122533;
+  --bg-2: #0d1a24;
+  --line: #213c4c;
   --text: #e6f6ff;
-  --muted: #7fa6b8;
-  --orange: #19c3ff; /* primary accent (cyan) */
-  --orange-soft: #8fe3ff;
-  --green: #37f5c5; /* secondary accent (teal) */
-  --green-soft: #9bf8e3;
+  --muted: #82a6b7;
+  --orange: #57b3da; /* primary accent (softer cyan) */
+  --orange-soft: #9cd5ec;
+  --green: #5cd2bb; /* secondary accent (softer teal) */
+  --green-soft: #a4e6d9;
 }
 
 [data-theme='light'] {
@@ -61,13 +61,14 @@
   --green-soft: #1d4ed8;
 }
 
-/* Derived accent glows + page background, shared by all themes. */
+/* Derived accent glows + page background, shared by all themes. Glow alpha is kept
+   modest so accents read as a gentle halo rather than an intense neon bloom. */
 :root {
-  --orange-glow: color-mix(in srgb, var(--orange) 50%, transparent);
-  --green-glow: color-mix(in srgb, var(--green) 50%, transparent);
+  --orange-glow: color-mix(in srgb, var(--orange) 28%, transparent);
+  --green-glow: color-mix(in srgb, var(--green) 28%, transparent);
   --page-bg:
-    radial-gradient(1100px 720px at 82% -12%, color-mix(in srgb, var(--orange) 12%, transparent), transparent 60%),
-    radial-gradient(960px 680px at -12% 112%, color-mix(in srgb, var(--green) 12%, transparent), transparent 55%),
+    radial-gradient(1100px 720px at 82% -12%, color-mix(in srgb, var(--orange) 7%, transparent), transparent 60%),
+    radial-gradient(960px 680px at -12% 112%, color-mix(in srgb, var(--green) 7%, transparent), transparent 55%),
     var(--bg-0);
 }
 

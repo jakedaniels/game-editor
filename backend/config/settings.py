@@ -108,3 +108,21 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- Media storage (AWS S3) -------------------------------------------------------------------
+# Character images are uploaded to S3. Fill these in backend/.env (dummy placeholders ship in
+# .env.example). Left as placeholders, the image endpoints report "not configured" instead of
+# failing hard — see api/services/storage.py::is_configured().
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET", "")
+# Optional public base URL (e.g. a CloudFront domain). Falls back to the standard S3 URL.
+AWS_S3_PUBLIC_BASE_URL = os.getenv("AWS_S3_PUBLIC_BASE_URL", "")
+
+# --- AI image generation (FLUX via fal.ai) ----------------------------------------------------
+# api/services/imagegen.py calls fal.ai's FLUX models. Get a key at https://fal.ai/dashboard/keys.
+# FAL_IMAGE_MODEL can be any fal image model, e.g. fal-ai/flux/dev (quality), fal-ai/flux/schnell
+# (fast/cheap), or fal-ai/flux-pro/v1.1 (best).
+FAL_KEY = os.getenv("FAL_KEY", "")
+FAL_IMAGE_MODEL = os.getenv("FAL_IMAGE_MODEL", "fal-ai/flux/dev")

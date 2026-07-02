@@ -8,9 +8,11 @@ import ProjectSystemsPage from './pages/ProjectSystemsPage';
 import ProjectPreviewPage from './pages/ProjectPreviewPage';
 import LevelsPage from './pages/LevelsPage';
 import LevelHomePage from './pages/LevelHomePage';
+import LevelCharactersPage from './pages/LevelCharactersPage';
 import ShapeEditorPage from './pages/ShapeEditorPage';
 import DialogueEditorPage from './pages/DialogueEditorPage';
 import CharactersPage from './pages/CharactersPage';
+import CharacterDetailPage from './pages/CharacterDetailPage';
 
 const THEME_LABELS: Record<Theme, string> = {
   neon: 'Neon',
@@ -56,9 +58,6 @@ export default function App() {
           <NavLink to="/" end className={navClass}>
             Projects
           </NavLink>
-          <NavLink to="/characters" className={navClass}>
-            Characters
-          </NavLink>
         </nav>
         <button
           type="button"
@@ -86,7 +85,14 @@ export default function App() {
             path="/projects/:projectId/levels/:levelId/dialogue"
             element={<DialogueEditorPage />}
           />
-          <Route path="/characters" element={<CharactersPage />} />
+          <Route
+            path="/projects/:projectId/levels/:levelId/characters"
+            element={<LevelCharactersPage />}
+          />
+          <Route
+            path="/projects/:projectId/characters/:characterId"
+            element={<CharacterDetailPage />}
+          />
           <Route path="/shapes" element={<ShapeEditorPage />} />
         </Routes>
       </main>

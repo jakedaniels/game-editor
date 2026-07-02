@@ -39,10 +39,22 @@ module declarations for CSS/asset imports — keep it.
   renders an `<Outlet/>`; the index redirects to `settings`. Tab child routes:
   `settings` = `ProjectSettingsPage` (dimension + genre), `systems` = `ProjectSystemsPage`
   (game-system architect + blueprint), `preview` = `ProjectPreviewPage` (draggable retro HUD),
-  `levels` = `LevelsPage` (project-scoped list), `characters` = `CharactersPage`. Drilling into a
-  level is a **full page outside the tab layout**: `/projects/:projectId/levels/:levelId` =
-  `LevelHomePage`, `/projects/:projectId/levels/:levelId/dialogue` = `DialogueEditorPage`. Also
-  `/characters` = `CharactersPage` (global) and `/shapes` = `ShapeEditorPage` (route kept; no nav).
+  `levels` = `LevelsPage` (project-scoped list), `characters` = `CharactersPage` (project-scoped
+  list + create). Drilling in is a **full page outside the tab layout**:
+  `/projects/:projectId/levels/:levelId` = `LevelHomePage` (hub with Dialogue + Characters tiles),
+  `/projects/:projectId/levels/:levelId/dialogue` = `DialogueEditorPage`,
+  `/projects/:projectId/levels/:levelId/characters` = `LevelCharactersPage` (the level's cast,
+  **deduced from dialogue speakers**, each with their lines + an Actions TODO stub), and
+  `/projects/:projectId/characters/:characterId` = `CharacterDetailPage` (edit name/description,
+  manage relationships, plus a TODO "Technical details" stub). `/shapes` = `ShapeEditorPage`
+  (route kept; no nav). **Characters are per-project** — there is no global `/characters` route or
+  nav item.
+- **Characters** (`pages/CharactersPage.tsx` + `CharacterDetailPage.tsx`): the list is a card grid
+  (`Characters.css`) scoped via `GET /api/characters?project_id=`; "＋ New character" POSTs then
+  routes to the detail page. Detail edits persist with `PATCH /api/characters/{id}`.
+  **Relationships are directed (unidirectional)**: adding one (`POST …/relationships`) creates an
+  edge from this character to the target and shows only on this character's page; the reverse is a
+  separate edge. Remove via `DELETE …/relationships/{id}`.
 - `ProjectHomePage` fetches the project and passes `{ project, patchProject }` to its tabs via
   **`useOutletContext`** (`useProject()` helper). `patchProject(partial)` does an optimistic
   `PATCH /api/projects/{id}`; the Systems/Preview tabs keep a local working copy and **debounce**
@@ -73,8 +85,16 @@ module declarations for CSS/asset imports — keep it.
   `GET /api/dialogues/{id}` for the focused node. Components in `components/dialogue/`:
   `ScenesSidebar` (left, controlled — switches the active scene), `CharactersSidebar` (right),
   `DialogueBlob` (current node + Edit), `ResponseWheel` (horizontal child cards; click →
-  `currentId`), `DialogueForm` (shared add/edit). "Back to parent" uses `detail.parent_id`;
-  Add/Edit call `POST`/`PATCH /api/dialogues` (new nodes inherit the current `sceneId`).
+  `currentId`), `DialogueForm` (shared add/edit; its speaker `<select>` has a **"＋ New"** action
+  that creates a character inline via `DialogueEditorPage.createCharacter` → `POST /api/characters`
+  and selects it). "Back to parent" uses `detail.parent_id`; Add/Edit call
+  `POST`/`PATCH /api/dialogues` (new nodes inherit the current `sceneId`).
+  A **Focus ⇄ Tree toggle** (`viewMode`) switches the stage between the one-node focused view above
+  and **`DialogueTree`** — a zoomable/pannable **React Flow** (`@xyflow/react`) canvas of the whole
+  scene. Tree mode fetches the flat node list via `GET /api/scenes/{id}/dialogues` (into `treeNodes`,
+  refetched after add/edit), hand-lays-out a tidy top-down tree (`layoutTree`, no layout lib),
+  renders custom node cards (avatar + speaker + text) with `<Controls>`/`<Background>`/`<MiniMap>`,
+  and on node-click sets `currentId` so the reused `DialogueBlob` below acts as the edit inspector.
 
 ### Backend (`backend/`) — Django + Django Ninja
 - `config/` — Django project: `settings.py` (env-driven via `.env`, see `.env.example`),
@@ -87,19 +107,53 @@ module declarations for CSS/asset imports — keep it.
     Settings (`dimension`/`genre`), Systems (`systems` JSON), and Preview (`hud_layout` JSON).
   - `GET /api/levels` (optional `?project_id=` filter), `POST /api/levels` (create; auto-appends
     `order`, takes `project_id`), `GET /api/levels/{id}`, `PATCH /api/levels/{id}` (rename) — the
-    project's Levels list + per-level hub.
-  - Endpoints used by the dialogue editor: `GET /api/characters`, `GET /api/scenes`,
-    `GET /api/dialogues?scene_id=` (a scene's roots), `GET /api/dialogues/{id}` (node + its
-    `responses`), `POST /api/dialogues` (create; `scene_id`/`parent_id`/`character_id`/`text`),
+    project's Levels list + per-level hub. `GET /api/levels/{id}/characters` returns the level's
+    cast **deduced from dialogue speakers** (`Dialogue.character` where `scene.level == level`),
+    each with the lines they speak — powers `LevelCharactersPage`.
+  - **Characters** (per-project): `GET /api/characters` (optional `?project_id=` filter),
+    `POST /api/characters` (create; name/description/project_id), `GET /api/characters/{id}`
+    (detail = description + `related` list), `PATCH /api/characters/{id}` (name/description).
+    **Directed relationships**: `POST /api/characters/{id}/relationships` (`other_id`+`relationship`;
+    creates a `from→to` edge, upserts on that ordered pair, validates same-project/no-self),
+    `DELETE /api/characters/{id}/relationships/{rel_id}`.
+    **Portrait**: `POST /api/characters/{id}/image` (multipart `file`; uploads to S3) and
+    `POST /api/characters/{id}/generate-image` (`{prompt?}`; FLUX/fal.ai → S3). Each image is stored
+    under a per-project/per-character folder `Characters/Project-<pid>/character-<cid>/<uuid>.<ext>`
+    (unique filename, so a folder can hold many portraits); the object key is the source of truth,
+    persisted on `Character.image_key`. The bucket stays **private** — the browser-facing
+    `image_url` in every character response is a short-lived **presigned GET URL** derived from
+    `image_key` at read time (never stored), so it can't go stale.
+    Both return the character detail; both return **503** with a friendly message when the relevant
+    credentials are unset/placeholder (see services below).
+  - Dialogue editor also uses: `GET /api/scenes`, `GET /api/dialogues?scene_id=` (a scene's roots),
+    `GET /api/dialogues/{id}` (node + its `responses`), `GET /api/scenes/{id}/dialogues` (**all**
+    nodes in a scene, flat — powers the Tree view; each node has `id`/`parent_id`/`text`/`character`),
+    `POST /api/dialogues` (create; `scene_id`/`parent_id`/`character_id`/`text`),
     `PATCH /api/dialogues/{id}` (partial update of `text`/`character_id`).
   - `GET /api/user` / `PATCH /api/user` — the **current user**. No real auth yet, so this is a
     single default user (created on first access via `_current_user()`); it stores per-user
     settings like the UI `theme`.
   - Interactive API docs (Swagger UI) at `/api/docs`; OpenAPI at `/api/openapi.json` (drives the
     frontend's `gen:api`).
-- `api/models.py`: `Project → Level → Scene` (FKs), `Scene ↔ Character` (M2M), and `Dialogue` — a
-  self-referential branching node (`scene` FK, `parent` FK to self, `character` FK, `text`).
-  A dialogue's children are `dialogue.responses`; a scene's tree is its `parent=None` roots.
+- **Character images** (`api/services/`): `storage.py` uploads image bytes to **AWS S3**
+  (`upload_image`, `is_configured`) and `imagegen.py` generates a portrait with **FLUX via fal.ai**
+  (`generate_image`, `is_configured`; calls fal's sync endpoint, downloads the result, and hands
+  the bytes back for S3 upload — swap providers by editing just this file). Both are **env-driven**
+  and treat blank/`REPLACE_ME` values as "not configured":
+  `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_REGION`/`AWS_S3_BUCKET`/`AWS_S3_PUBLIC_BASE_URL`
+  and `FAL_KEY`/`FAL_IMAGE_MODEL` (in `backend/.env`, see `.env.example`). Deps: `boto3`, `requests`. `upload_image(...)` returns `(public_url, key)` and
+  takes a `key_prefix` folder (the API passes `Characters/Project-<pid>/character-<cid>`); only the
+  S3 key is stored (`Character.image_key`). `view_url(key)` returns the browser URL for a key — the
+  `AWS_S3_PUBLIC_BASE_URL` CDN base if set, otherwise a **presigned** GET URL for the private
+  bucket. The S3 client pins the **regional** endpoint (`s3.<region>.amazonaws.com`) + virtual
+  addressing so presigned URLs don't hit a 307 region-redirect that breaks the SigV4 signature —
+  **`AWS_REGION` must match the bucket's actual region.**
+- `api/models.py`: `Project → Level → Scene` (FKs), `Character` (now `project` FK + `description`
+  + `image_key`; `Scene ↔ Character` M2M), `CharacterRelationship` (directed labeled edge
+  `from_character → to_character` with a `uniq_char_relationship` unique constraint; a character's
+  outgoing links are `relationships_out`), and
+  `Dialogue` — a self-referential branching node (`scene` FK, `parent` FK to self, `character` FK,
+  `text`). A dialogue's children are `dialogue.responses`; a scene's tree is its `parent=None` roots.
   **`Project`** is the top-level game container: `name`/`order` plus first-class `dimension` and
   `genre` columns, and two **JSONB** fields — `systems` (the per-system enabled+answers, shape
   defined by `gameSystems.ts`) and `hud_layout` (`{systemId: {x,y}}`). Hybrid on purpose: the

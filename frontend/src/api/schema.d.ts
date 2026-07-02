@@ -51,10 +51,110 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List characters */
+        /**
+         * List characters
+         * @description All characters, or just one project's characters when `project_id` is given.
+         */
         get: operations["api_api_list_characters"];
         put?: never;
+        /** Create a character */
+        post: operations["api_api_create_character"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a character */
+        get: operations["api_api_get_character"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a character */
+        patch: operations["api_api_update_character"];
+        trace?: never;
+    };
+    "/api/characters/{character_id}/relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add or update a relationship
+         * @description Directed: creates an edge from this character to `other_id`. Shows only on this
+         *     character's page. If the same directed edge already exists, its label is updated.
+         */
+        post: operations["api_api_add_relationship"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_id}/relationships/{relationship_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a relationship */
+        delete: operations["api_api_delete_relationship"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a character portrait
+         * @description Upload an image file for the character; stores it in S3 and saves the public URL.
+         */
+        post: operations["api_api_upload_character_image"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{character_id}/generate-image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a character portrait with AI
+         * @description Generate a portrait with FLUX (fal.ai), upload it to S3, and save the key on the character.
+         */
+        post: operations["api_api_generate_character_image"];
         delete?: never;
         options?: never;
         head?: never;
@@ -139,6 +239,27 @@ export interface paths {
         patch: operations["api_api_update_level"];
         trace?: never;
     };
+    "/api/levels/{level_id}/characters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Characters in a level (deduced from dialogue)
+         * @description The level's cast, deduced from which characters speak its dialogue, each with the
+         *     lines they speak (across the level's scenes). Ordered by character name.
+         */
+        get: operations["api_api_level_characters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scenes": {
         parameters: {
             query?: never;
@@ -148,6 +269,28 @@ export interface paths {
         };
         /** List scenes */
         get: operations["api_api_list_scenes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenes/{scene_id}/dialogues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All dialogue nodes in a scene (flat, for the tree view)
+         * @description Every dialogue node in a scene as a flat list — the frontend builds the tree from
+         *     `id`/`parent_id`. One JOIN (no N+1); each node's character serializes like everywhere else
+         *     (presigned image URL via CharacterOut).
+         */
+        get: operations["api_api_scene_dialogue_tree"];
         put?: never;
         post?: never;
         delete?: never;
@@ -238,6 +381,102 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Image Url
+             * @default
+             */
+            image_url: string;
+        };
+        /** CharacterCreateIn */
+        CharacterCreateIn: {
+            /**
+             * Name
+             * @default New Character
+             */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Project Id */
+            project_id?: number | null;
+        };
+        /**
+         * CharacterDetailOut
+         * @description A single character with its description, portrait, and relationships.
+         */
+        CharacterDetailOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Image Url
+             * @default
+             */
+            image_url: string;
+            /**
+             * Image Key
+             * @default
+             */
+            image_key: string;
+            /** Project Id */
+            project_id?: number | null;
+            /**
+             * Related
+             * @default []
+             */
+            related: components["schemas"]["RelatedCharacterOut"][];
+        };
+        /**
+         * RelatedCharacterOut
+         * @description A character related to another, plus the relationship's label and edge id.
+         */
+        RelatedCharacterOut: {
+            /** Relationship Id */
+            relationship_id: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Relationship */
+            relationship: string;
+        };
+        /**
+         * CharacterUpdateIn
+         * @description Partial update — omitted fields are left unchanged.
+         */
+        CharacterUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** RelationshipCreateIn */
+        RelationshipCreateIn: {
+            /** Other Id */
+            other_id: number;
+            /**
+             * Relationship
+             * @default
+             */
+            relationship: string;
+        };
+        /** GenerateImageIn */
+        GenerateImageIn: {
+            /** Prompt */
+            prompt?: string | null;
         };
         /**
          * ProjectOut
@@ -335,6 +574,45 @@ export interface components {
             /** Order */
             order?: number | null;
         };
+        /** LevelCharacterLineOut */
+        LevelCharacterLineOut: {
+            /** Id */
+            id: number;
+            /** Text */
+            text: string;
+            /** Scene Id */
+            scene_id?: number | null;
+            /**
+             * Scene Name
+             * @default
+             */
+            scene_name: string;
+        };
+        /**
+         * LevelCharacterOut
+         * @description A character appearing in a level (deduced from dialogue), with the lines they speak.
+         */
+        LevelCharacterOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Image Url
+             * @default
+             */
+            image_url: string;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["LevelCharacterLineOut"][];
+        };
         /** SceneOut */
         SceneOut: {
             /** Id */
@@ -345,6 +623,19 @@ export interface components {
             level_id: number;
             /** Level Name */
             level_name: string;
+        };
+        /**
+         * DialogueNodeOut
+         * @description A single node in a scene's flat dialogue list — enough to lay out the whole tree.
+         */
+        DialogueNodeOut: {
+            /** Id */
+            id: number;
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Text */
+            text: string;
+            character?: components["schemas"]["CharacterOut"] | null;
         };
         /**
          * DialogueSummaryOut
@@ -479,7 +770,9 @@ export interface operations {
     };
     api_api_list_characters: {
         parameters: {
-            query?: never;
+            query?: {
+                project_id?: number | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -493,6 +786,237 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CharacterOut"][];
+                };
+            };
+        };
+    };
+    api_api_create_character: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CharacterCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterOut"];
+                };
+            };
+        };
+    };
+    api_api_get_character: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterDetailOut"];
+                };
+            };
+        };
+    };
+    api_api_update_character: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CharacterUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterDetailOut"];
+                };
+            };
+        };
+    };
+    api_api_add_relationship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelationshipCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterDetailOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_delete_relationship: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+                relationship_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_api_upload_character_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * File
+                     * Format: binary
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterDetailOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_generate_character_image: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateImageIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CharacterDetailOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
@@ -683,6 +1207,28 @@ export interface operations {
             };
         };
     };
+    api_api_level_characters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                level_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelCharacterOut"][];
+                };
+            };
+        };
+    };
     api_api_list_scenes: {
         parameters: {
             query?: never;
@@ -699,6 +1245,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SceneOut"][];
+                };
+            };
+        };
+    };
+    api_api_scene_dialogue_tree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DialogueNodeOut"][];
                 };
             };
         };

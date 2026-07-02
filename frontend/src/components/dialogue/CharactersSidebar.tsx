@@ -12,7 +12,14 @@ export function CharactersSidebar({ characters }: CharactersSidebarProps) {
       <ul className="sidebar__list">
         {characters.map((c) => (
           <li key={c.id} className="character-pill">
-            {c.name}
+            <span className="character-pill__avatar">
+              {c.image_url ? (
+                <img className="character-pill__avatar-img" src={c.image_url} alt="" />
+              ) : (
+                (c.name[0] ?? '?').toUpperCase()
+              )}
+            </span>
+            <span className="character-pill__name">{c.name}</span>
           </li>
         ))}
       </ul>

@@ -10,6 +10,7 @@
     "gen:api": "openapi-typescript http://localhost:8000/api/openapi.json -o src/api/schema.d.ts"
   },
   "dependencies": {
+    "@xyflow/react": "^12.11.1",
     "openapi-fetch": "^0.17.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

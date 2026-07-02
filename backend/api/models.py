@@ -67,12 +67,54 @@ class Level(models.Model):
 
 
 class Character(models.Model):
-    """A character that can appear in scenes and speak dialogue."""
+    """A character in a project. Can appear in scenes, speak dialogue, and relate to others."""
 
+    project = models.ForeignKey(
+        "Project", null=True, blank=True, on_delete=models.CASCADE, related_name="characters"
+    )
     name = models.CharField(max_length=30)
+    description = models.TextField(blank=True, default="")
+    # The portrait's S3 object key (path within the bucket), e.g.
+    # "Characters/Project-1/character-2/<uuid>.png". Blank = none yet. The browser-facing URL is
+    # derived from this at read time (a presigned GET URL) — see storage.view_url().
+    image_key = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
 
     def __str__(self) -> str:
         return self.name
+
+
+class CharacterRelationship(models.Model):
+    """A directed, labeled relationship from one character to another (e.g. "mentor of").
+
+    Unidirectional: it belongs to `from_character` and shows only on that character's page;
+    the reverse (`to_character` → `from_character`) is a separate edge if wanted. One edge per
+    ordered pair (`from_character`, `to_character`); a character's relationships are its
+    `relationships_out`.
+    """
+
+    from_character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="relationships_out"
+    )
+    to_character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="relationships_in"
+    )
+    relationship = models.CharField(max_length=100, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["from_character", "to_character"], name="uniq_char_relationship"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.from_character.name} → {self.to_character.name}: {self.relationship}"
 
 
 class Scene(models.Model):

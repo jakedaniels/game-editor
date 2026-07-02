@@ -1,0 +1,111 @@
+.dtree {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* React Flow surface — blend with the editor's dark stage. */
+.dtree .react-flow {
+  background: transparent;
+}
+
+.dtree .react-flow__controls,
+.dtree .react-flow__minimap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dtree .react-flow__minimap {
+  width: 150px;
+  height: 104px;
+  background: var(--bg-2);
+}
+
+.dtree .react-flow__minimap-mask {
+  fill: color-mix(in srgb, var(--bg-1) 55%, transparent);
+}
+
+.dtree .react-flow__minimap-node {
+  fill: color-mix(in srgb, var(--green) 65%, transparent);
+  stroke: none;
+}
+
+/* Node card */
+.dtree-node {
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.dtree-node:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 16px var(--green-glow);
+}
+
+.dtree-node--selected {
+  border-color: var(--orange);
+  box-shadow: 0 0 18px var(--orange-glow);
+}
+
+.dtree-node__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dtree-node__avatar {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--green-soft);
+  border: 1px solid var(--green);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--green) 18%, transparent), var(--bg-2));
+}
+
+.dtree-node__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dtree-node__speaker {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.68rem;
+  color: var(--green-soft);
+}
+
+.dtree-node__text {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Hide the connection handles — edges still render, but they're not interactive. */
+.dtree .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}

@@ -6,7 +6,7 @@ Idempotent: clears existing dialogues and recreates fresh trees. Run with:
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from api.models import Character, Dialogue, Level, Project, Scene
+from api.models import Character, CharacterRelationship, Dialogue, Level, Project, Scene
 
 
 class Command(BaseCommand):
@@ -29,12 +29,27 @@ class Command(BaseCommand):
         scene5, _ = Scene.objects.get_or_create(level=level, name="Scene 5", defaults={"order": 5})
         scene6, _ = Scene.objects.get_or_create(level=level, name="Scene 6", defaults={"order": 6})
 
-        hero, _ = Character.objects.get_or_create(name="Hero")
-        guide, _ = Character.objects.get_or_create(name="Guide")
-        merchant, _ = Character.objects.get_or_create(name="Merchant")
+        hero, _ = Character.objects.get_or_create(
+            name="Hero", defaults={"project": project, "description": "The player's protagonist."}
+        )
+        guide, _ = Character.objects.get_or_create(
+            name="Guide", defaults={"project": project, "description": "A wise mentor at the crossroads."}
+        )
+        merchant, _ = Character.objects.get_or_create(
+            name="Merchant", defaults={"project": project, "description": "Sells supplies for the journey."}
+        )
         for c in (hero, guide, merchant):
+            if c.project_id is None:
+                c.project = project
+                c.save(update_fields=["project"])
             scene5.characters.add(c)
         scene6.characters.add(hero, guide)
+
+        # A sample directed relationship so the Characters UI has one to show
+        # (the Guide is a mentor *to* the Hero — shows on the Guide's page).
+        CharacterRelationship.objects.update_or_create(
+            from_character=guide, to_character=hero, defaults={"relationship": "mentor of"}
+        )
 
         # --- Scene 5: the crossroads ---------------------------------------------------------
         root5 = Dialogue.objects.create(

@@ -107,13 +107,15 @@
 }
 
 .character-pill {
-  padding: 0.5rem 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.8rem 0.4rem 0.4rem;
   font-size: 0.85rem;
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
   border-radius: 999px;
   background: var(--bg-2);
-  text-align: center;
   transition:
     box-shadow 0.12s,
     border-color 0.12s;
@@ -122,6 +124,36 @@
 .character-pill:hover {
   border-color: var(--orange);
   box-shadow: 0 0 14px var(--orange-glow);
+}
+
+.character-pill__avatar {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--orange-soft);
+  border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--orange) 18%, transparent), var(--bg-2));
+}
+
+.character-pill__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-pill__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* --- Center stage ----------------------------------------------------------------- */
@@ -160,6 +192,43 @@
   padding-bottom: 0.25rem;
   border-bottom: 2px solid var(--orange);
   box-shadow: 0 2px 12px var(--orange-glow);
+}
+
+/* Focus ⇄ Tree segmented toggle */
+.dialogue-editor__viewtoggle {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-2);
+}
+
+.dialogue-editor__viewbtn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.66rem;
+  color: var(--muted);
+  transition:
+    color 0.12s,
+    background 0.12s,
+    box-shadow 0.12s;
+}
+
+.dialogue-editor__viewbtn:hover {
+  color: var(--text);
+}
+
+.dialogue-editor__viewbtn.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--orange) 22%, transparent);
+  box-shadow: 0 0 12px var(--orange-glow);
 }
 
 .dialogue-editor__empty {
@@ -260,11 +329,18 @@
   height: 72px;
   border: 1px solid var(--green);
   border-radius: 50%;
+  overflow: hidden;
   background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--green) 18%, transparent), var(--bg-2));
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 16px var(--green-glow);
+}
+
+.dialogue-blob__portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dialogue-blob__portrait-text {
@@ -422,6 +498,28 @@
   box-shadow: 0 0 18px var(--green-glow);
 }
 
+.response-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--green-soft);
+  border: 1px solid var(--green);
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--green) 18%, transparent), var(--bg-2));
+}
+
+.response-card__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .response-card__speaker {
   font-family: var(--font-display);
   text-transform: uppercase;
@@ -487,4 +585,35 @@
   display: flex;
   justify-content: center;
   gap: 0.5rem;
+}
+
+/* Speaker row: character dropdown + inline "New character" affordance. */
+.dialogue-form__speaker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.dialogue-form__new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dialogue-form__new-input {
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--orange);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.dialogue-form__new-input:focus {
+  outline: none;
+  box-shadow: 0 0 12px var(--orange-glow);
 }
