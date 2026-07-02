@@ -93,8 +93,9 @@ module declarations for CSS/asset imports — keep it.
   and **`DialogueTree`** — a zoomable/pannable **React Flow** (`@xyflow/react`) canvas of the whole
   scene. Tree mode fetches the flat node list via `GET /api/scenes/{id}/dialogues` (into `treeNodes`,
   refetched after add/edit), hand-lays-out a tidy top-down tree (`layoutTree`, no layout lib),
-  renders custom node cards (avatar + speaker + text) with `<Controls>`/`<Background>`/`<MiniMap>`,
-  and on node-click sets `currentId` so the reused `DialogueBlob` below acts as the edit inspector.
+  renders custom node cards (avatar + speaker + text) with `<Controls>`/`<Background>`; on
+  node-click it sets `currentId` (so the reused `DialogueBlob` below acts as the edit inspector)
+  and `setCenter`s to zoom in on that node.
 
 ### Backend (`backend/`) — Django + Django Ninja
 - `config/` — Django project: `settings.py` (env-driven via `.env`, see `.env.example`),

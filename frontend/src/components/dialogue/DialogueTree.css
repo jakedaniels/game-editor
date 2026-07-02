@@ -9,26 +9,10 @@
   background: transparent;
 }
 
-.dtree .react-flow__controls,
-.dtree .react-flow__minimap {
+.dtree .react-flow__controls {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
-}
-
-.dtree .react-flow__minimap {
-  width: 150px;
-  height: 104px;
-  background: var(--bg-2);
-}
-
-.dtree .react-flow__minimap-mask {
-  fill: color-mix(in srgb, var(--bg-1) 55%, transparent);
-}
-
-.dtree .react-flow__minimap-node {
-  fill: color-mix(in srgb, var(--green) 65%, transparent);
-  stroke: none;
 }
 
 /* Node card */

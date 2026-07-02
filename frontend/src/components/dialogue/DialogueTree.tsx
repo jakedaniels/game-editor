@@ -3,7 +3,6 @@ import {
   Background,
   Controls,
   Handle,
-  MiniMap,
   ReactFlow,
   Position,
   type Edge,
@@ -134,10 +133,10 @@ export function DialogueTree({ nodes, selectedId, onSelect }: DialogueTreeProps)
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.15}
+        proOptions={{ hideAttribution: true }}
       >
         <Background gap={24} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable />
       </ReactFlow>
     </div>
   );
