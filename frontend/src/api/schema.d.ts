@@ -507,6 +507,13 @@ export interface components {
             hud_layout: {
                 [key: string]: unknown;
             };
+            /**
+             * State Schema
+             * @default {}
+             */
+            state_schema: {
+                [key: string]: unknown;
+            };
         };
         /** ProjectCreateIn */
         ProjectCreateIn: {
@@ -538,6 +545,10 @@ export interface components {
             } | null;
             /** Hud Layout */
             hud_layout?: {
+                [key: string]: unknown;
+            } | null;
+            /** State Schema */
+            state_schema?: {
                 [key: string]: unknown;
             } | null;
         };
@@ -636,6 +647,20 @@ export interface components {
             /** Text */
             text: string;
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * DialogueSummaryOut
@@ -647,6 +672,20 @@ export interface components {
             /** Text */
             text: string;
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * DialogueDetailOut
@@ -662,6 +701,20 @@ export interface components {
             /** Parent Id */
             parent_id?: number | null;
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
             /**
              * Responses
              * @default []
@@ -684,6 +737,14 @@ export interface components {
              * @default
              */
             text: string;
+            /** Requirements */
+            requirements?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Effects */
+            effects?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /**
          * DialogueUpdateIn
@@ -694,6 +755,14 @@ export interface components {
             character_id?: number | null;
             /** Text */
             text?: string | null;
+            /** Requirements */
+            requirements?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Effects */
+            effects?: {
+                [key: string]: unknown;
+            }[] | null;
         };
     };
     responses: never;

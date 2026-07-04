@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { DialogueSummary } from '../../api/client';
+import type { DialogueEffect, DialogueRequirement, DialogueSummary } from '../../api/client';
 
 interface ResponseWheelProps {
   responses: DialogueSummary[];
@@ -9,6 +9,19 @@ interface ResponseWheelProps {
 const VISIBLE = 3; // show at most this many before turning into a scrollable carousel
 const MIN_SCALE = 0.68; // how small a card gets once it's off to the side
 const MIN_OPACITY = 0.45;
+
+function getEffectBadge(effect: DialogueEffect) {
+  if (effect.type === 'remember_choice') return '🧠 Remembered';
+  if (effect.type === 'give_item') return '🎒 Gives item';
+  if (effect.type === 'remove_item') return '🎒 Removes item';
+  if (effect.type === 'change_stat') return '📈 Changes stat';
+  if (effect.type === 'set_flag') return '🚩 Sets flag';
+  return '⚡ Effect';
+}
+
+function getRequirementBadge(_requirement: DialogueRequirement) {
+  return '🔒 Requirement';
+}
 
 /**
  * The current dialogue's children. With <= 3 responses they sit in a simple row. With more,
@@ -102,6 +115,23 @@ export function ResponseWheel({ responses, onSelect }: ResponseWheelProps) {
       </span>
       <span className="response-card__speaker">{r.character?.name ?? 'Unknown'}</span>
       <span className="response-card__text">{r.text || '(no text)'}</span>
+      {Boolean(r.requirements?.length || r.effects?.length) && (
+        <span className="dialogue-badges response-card__badges">
+          {((r.requirements ?? []) as DialogueRequirement[]).map((requirement, index) => (
+            <span key={`requirement-${index}`} className="dialogue-badge dialogue-badge--requirement">
+              {getRequirementBadge(requirement)}
+            </span>
+          ))}
+          {((r.effects ?? []) as DialogueEffect[]).map((effect, index) => (
+            <span
+              key={`${effect.type}-${effect.state_key}-${index}`}
+              className={`dialogue-badge dialogue-badge--${effect.type}`}
+            >
+              {getEffectBadge(effect)}
+            </span>
+          ))}
+        </span>
+      )}
     </button>
   ));
 

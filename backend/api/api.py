@@ -111,6 +111,7 @@ class ProjectOut(Schema):
     genre: str
     systems: dict[str, Any] = {}  # ArchitectState (per-system enabled + answers)
     hud_layout: dict[str, Any] = {}  # HudLayout ({systemId: {x, y}})
+    state_schema: dict[str, Any] = {} # this is to help track effects/requirements in choices in dialogue
 
 
 class ProjectCreateIn(Schema):
@@ -128,6 +129,7 @@ class ProjectUpdateIn(Schema):
     genre: str | None = None
     systems: dict[str, Any] | None = None
     hud_layout: dict[str, Any] | None = None
+    state_schema: dict[str, Any] | None = None 
 
 
 class LevelOut(Schema):
@@ -180,6 +182,8 @@ class DialogueSummaryOut(Schema):
     id: int
     text: str
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
 
 
 class DialogueDetailOut(Schema):
@@ -190,6 +194,8 @@ class DialogueDetailOut(Schema):
     scene_id: int | None = None
     parent_id: int | None = None
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
     responses: list[DialogueSummaryOut] = []
 
 
@@ -200,6 +206,8 @@ class DialogueNodeOut(Schema):
     parent_id: int | None = None
     text: str
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
 
 
 class DialogueIn(Schema):
@@ -209,6 +217,8 @@ class DialogueIn(Schema):
     parent_id: int | None = None
     character_id: int | None = None
     text: str = ""
+    requirements: list[dict[str, Any]] | None = None
+    effects: list[dict[str, Any]] | None = None
 
 
 class DialogueUpdateIn(Schema):
@@ -216,6 +226,8 @@ class DialogueUpdateIn(Schema):
 
     character_id: int | None = None
     text: str | None = None
+    requirements: list[dict[str, Any]] | None = None
+    effects: list[dict[str, Any]] | None = None
 
 
 # --- Auth (placeholder) -----------------------------------------------------------------------
@@ -454,6 +466,8 @@ def update_project(request, project_id: int, payload: ProjectUpdateIn):
         project.systems = data["systems"]
     if "hud_layout" in data and data["hud_layout"] is not None:
         project.hud_layout = data["hud_layout"]
+    if "state_schema" in data and data["state_schema"] is not None:
+        project.state_schema = data["state_schema"]
     project.save()
     return project
 
@@ -594,6 +608,8 @@ def create_dialogue(request, payload: DialogueIn):
         parent_id=payload.parent_id,
         character_id=payload.character_id,
         text=payload.text,
+        requirements=payload.requirements or [],
+        effects=payload.effects or [],
     )
     return 201, _dialogue_detail(dialogue.id)
 
@@ -607,5 +623,9 @@ def update_dialogue(request, dialogue_id: int, payload: DialogueUpdateIn):
         dialogue.text = data["text"] or ""
     if "character_id" in data:
         dialogue.character_id = data["character_id"]
+    if "requirements" in data and data["requirements"] is not None:
+        dialogue.requirements = data["requirements"]
+    if "effects" in data and data["effects"] is not None:
+        dialogue.effects = data["effects"]
     dialogue.save()
     return _dialogue_detail(dialogue.id)

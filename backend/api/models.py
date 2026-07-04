@@ -38,6 +38,7 @@ class Project(models.Model):
     genre = models.CharField(max_length=30, blank=True, default="")
     systems = models.JSONField(default=dict, blank=True)  # ArchitectState: per-system enabled+answers
     hud_layout = models.JSONField(default=dict, blank=True)  # HudLayout: {systemId: {x, y}}
+    state_schema = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -153,6 +154,8 @@ class Dialogue(models.Model):
         Character, null=True, blank=True, on_delete=models.SET_NULL, related_name="dialogues"
     )
     text = models.TextField(blank=True, default="")
+    requirements = models.JSONField(default=list, blank=True)
+    effects = models.JSONField(default=list, blank=True)   
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -11,7 +11,7 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { DialogueNode } from '../../api/client';
+import type { DialogueEffect, DialogueNode, DialogueRequirement } from '../../api/client';
 import './DialogueTree.css';
 
 interface DialogueTreeProps {
@@ -24,6 +24,19 @@ type NodeData = { node: DialogueNode; selected: boolean };
 
 const ROW_H = 150; // vertical gap between tree depths
 const COL_W = 260; // horizontal gap between sibling leaves
+
+function getEffectBadge(effect: DialogueEffect) {
+  if (effect.type === 'remember_choice') return '🧠 Remembered';
+  if (effect.type === 'give_item') return '🎒 Gives item';
+  if (effect.type === 'remove_item') return '🎒 Removes item';
+  if (effect.type === 'change_stat') return '📈 Changes stat';
+  if (effect.type === 'set_flag') return '🚩 Sets flag';
+  return '⚡ Effect';
+}
+
+function getRequirementBadge(_requirement: DialogueRequirement) {
+  return '🔒 Requirement';
+}
 
 /**
  * Tidy top-down layout, O(n): leaves take successive columns left-to-right; a parent centers over
@@ -78,6 +91,23 @@ function DialogueTreeNode({ data }: NodeProps<Node<NodeData>>) {
         <span className="dtree-node__speaker">{speaker}</span>
       </div>
       <div className="dtree-node__text">{node.text || '(no text)'}</div>
+      {Boolean(node.requirements?.length || node.effects?.length) && (
+        <div className="dialogue-badges dtree-node__badges">
+          {((node.requirements ?? []) as DialogueRequirement[]).map((requirement, index) => (
+            <span key={`requirement-${index}`} className="dialogue-badge dialogue-badge--requirement">
+              {getRequirementBadge(requirement)}
+            </span>
+          ))}
+          {((node.effects ?? []) as DialogueEffect[]).map((effect, index) => (
+            <span
+              key={`${effect.type}-${effect.state_key}-${index}`}
+              className={`dialogue-badge dialogue-badge--${effect.type}`}
+            >
+              {getEffectBadge(effect)}
+            </span>
+          ))}
+        </div>
+      )}
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
