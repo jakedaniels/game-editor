@@ -38,22 +38,29 @@ function getRequirementBadge(_requirement: DialogueRequirement) {
   return '🔒 Requirement';
 }
 
+/** The parent used for layout purposes when a node has more than one (first one wins; extra
+ * incoming links still get their own edge line, just not a say in this node's position). */
+function primaryParentId(node: DialogueNode, byId: Map<number, DialogueNode>): number | null {
+  return node.parent_ids.find((id) => byId.has(id)) ?? null;
+}
+
 /**
  * Tidy top-down layout, O(n): leaves take successive columns left-to-right; a parent centers over
- * its children. Multiple scene roots (no parent) are laid out as a left-to-right forest.
+ * its children. Multiple scene roots (no incoming edges) are laid out as a left-to-right forest.
+ * A node reachable from more than one parent is positioned under its first (primary) parent only;
+ * the other links still render as edges, so the graph reads like a tree with occasional reconverging lines.
  */
 function layoutTree(nodes: DialogueNode[]): Record<number, { x: number; y: number }> {
   const byId = new Map<number, DialogueNode>();
   const childrenOf = new Map<number, number[]>();
   for (const n of nodes) byId.set(n.id, n);
   for (const n of nodes) {
-    if (n.parent_id != null && byId.has(n.parent_id)) {
-      (childrenOf.get(n.parent_id) ?? childrenOf.set(n.parent_id, []).get(n.parent_id)!).push(n.id);
+    const parentId = primaryParentId(n, byId);
+    if (parentId != null) {
+      (childrenOf.get(parentId) ?? childrenOf.set(parentId, []).get(parentId)!).push(n.id);
     }
   }
-  const roots = nodes
-    .filter((n) => n.parent_id == null || !byId.has(n.parent_id))
-    .map((n) => n.id);
+  const roots = nodes.filter((n) => primaryParentId(n, byId) == null).map((n) => n.id);
 
   const pos: Record<number, { x: number; y: number }> = {};
   let nextLeafX = 0;
@@ -133,6 +140,7 @@ export function DialogueTree({ nodes, selectedId, onSelect }: DialogueTreeProps)
   );
 
   const { rfNodes, rfEdges } = useMemo(() => {
+    const byId = new Map(nodes.map((n) => [n.id, n]));
     const pos = layoutTree(nodes);
     const rfNodes: Node<NodeData>[] = nodes.map((n) => ({
       id: String(n.id),
@@ -140,13 +148,15 @@ export function DialogueTree({ nodes, selectedId, onSelect }: DialogueTreeProps)
       position: pos[n.id] ?? { x: 0, y: 0 },
       data: { node: n, selected: n.id === selectedId },
     }));
-    const rfEdges: Edge[] = nodes
-      .filter((n) => n.parent_id != null)
-      .map((n) => ({
-        id: `e${n.parent_id}-${n.id}`,
-        source: String(n.parent_id),
-        target: String(n.id),
-      }));
+    const rfEdges: Edge[] = nodes.flatMap((n) =>
+      n.parent_ids
+        .filter((parentId) => byId.has(parentId))
+        .map((parentId) => ({
+          id: `e${parentId}-${n.id}`,
+          source: String(parentId),
+          target: String(n.id),
+        })),
+    );
     return { rfNodes, rfEdges };
   }, [nodes, selectedId]);
 

@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 
 
@@ -137,25 +139,28 @@ class Scene(models.Model):
 
 
 class Dialogue(models.Model):
-    """A node in a branching dialogue tree.
+    """A node in a branching dialogue *graph* (a Yarn-style node).
 
-    Intentionally basic for now (to be expanded later): a dialogue has a parent dialogue
-    (None == root), the character who speaks it, and its text. A dialogue's `responses`
-    (its children) are the branches shown in the editor's response wheel.
+    Nodes are linked by `DialogueEdge` rather than a single `parent` FK, so a node can be
+    reached from multiple points (reuse/reconvergence) or even form a loop — both ordinary
+    Yarn features. A node with no `incoming_edges` is a scene root. `title` is a stable,
+    project-wide-unique, Yarn-friendly identifier: auto-generated from the parent's title (or
+    the scene, for a root) + a running number, unless the node carries a `remember_choice`
+    effect, in which case the title tracks that effect's `state_key` instead (see
+    `sync_title_from_effects`). Edges reference nodes by FK, so renaming/regenerating a title
+    never breaks a jump.
     """
 
     scene = models.ForeignKey(
         Scene, null=True, blank=True, on_delete=models.CASCADE, related_name="dialogues"
     )
-    parent = models.ForeignKey(
-        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="responses"
-    )
+    title = models.CharField(max_length=100, unique=True)
     character = models.ForeignKey(
         Character, null=True, blank=True, on_delete=models.SET_NULL, related_name="dialogues"
     )
     text = models.TextField(blank=True, default="")
     requirements = models.JSONField(default=list, blank=True)
-    effects = models.JSONField(default=list, blank=True)   
+    effects = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -165,3 +170,91 @@ class Dialogue(models.Model):
     def __str__(self) -> str:
         speaker = self.character.name if self.character else "—"
         return f"{speaker}: {self.text[:40]}"
+
+    @staticmethod
+    def _slugify(value: str) -> str:
+        slug = re.sub(r"[^a-zA-Z0-9]+", "_", value or "").strip("_").lower()
+        return slug or "node"
+
+    @classmethod
+    def _unique_title(cls, base: str, *, exclude_pk: int | None = None) -> str:
+        """`base` if free, else `base_2`, `base_3`, ... — no forced numeric suffix on the first try."""
+        qs = cls.objects.all() if exclude_pk is None else cls.objects.exclude(pk=exclude_pk)
+        if not qs.filter(title=base).exists():
+            return base
+        n = 2
+        while qs.filter(title=f"{base}_{n}").exists():
+            n += 1
+        return f"{base}_{n}"
+
+    @classmethod
+    def _generate_title(cls, base: str) -> str:
+        """Always-numbered auto title: `base_1`, `base_2`, ... (the default naming scheme)."""
+        n = 1
+        while cls.objects.filter(title=f"{base}_{n}").exists():
+            n += 1
+        return f"{base}_{n}"
+
+    @classmethod
+    def create_node(
+        cls,
+        *,
+        scene: "Scene | None",
+        parent: "Dialogue | None" = None,
+        character_id: int | None = None,
+        text: str = "",
+        requirements: list | None = None,
+        effects: list | None = None,
+    ) -> "Dialogue":
+        """Create a node and, if `parent` is given, the edge attaching it as a response."""
+        base = parent.title if parent is not None else cls._slugify(scene.name if scene else "scene")
+        node = cls.objects.create(
+            scene=scene,
+            character_id=character_id,
+            text=text,
+            title=cls._generate_title(base),
+            requirements=requirements or [],
+            effects=effects or [],
+        )
+        node.sync_title_from_effects()
+        if parent is not None:
+            DialogueEdge.objects.create(
+                from_node=parent, to_node=node, order=parent.outgoing_edges.count()
+            )
+        return node
+
+    def sync_title_from_effects(self) -> None:
+        """If a `remember_choice` effect is present, the node's title tracks its state_key —
+        the one case where a human needs a stable, meaningful name for this node."""
+        remember = next(
+            (e for e in (self.effects or []) if e.get("type") == "remember_choice"), None
+        )
+        if not remember:
+            return
+        base = self._slugify(remember.get("state_key") or remember.get("label") or self.title)
+        new_title = self._unique_title(base, exclude_pk=self.pk)
+        if new_title != self.title:
+            self.title = new_title
+            self.save(update_fields=["title"])
+
+
+class DialogueEdge(models.Model):
+    """A directed edge in the dialogue graph: `from_node` presents this as a response that
+    leads to `to_node`. `option_label` optionally overrides the response's displayed text
+    (Yarn's shortcut-option-text-vs-body distinction); blank falls back to `to_node.text`.
+    A node with no incoming edges is a scene root.
+    """
+
+    from_node = models.ForeignKey(Dialogue, on_delete=models.CASCADE, related_name="outgoing_edges")
+    to_node = models.ForeignKey(Dialogue, on_delete=models.CASCADE, related_name="incoming_edges")
+    option_label = models.CharField(max_length=200, blank=True, default="")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["from_node", "to_node"], name="uniq_dialogue_edge")
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.from_node.title} -> {self.to_node.title}"

@@ -194,6 +194,12 @@
   box-shadow: 0 2px 12px var(--orange-glow);
 }
 
+.dialogue-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* Focus ⇄ Tree segmented toggle */
 .dialogue-editor__viewtoggle {
   display: inline-flex;
@@ -247,9 +253,25 @@
 }
 
 .dialogue-editor__parent {
-  height: 2rem;
+  min-height: 2rem;
   display: flex;
   align-items: center;
+}
+
+.dialogue-editor__parent-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.dialogue-editor__parent-picker-label {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.68rem;
+  color: var(--muted);
 }
 
 .dialogue-editor__back {
@@ -810,4 +832,73 @@
   color: var(--muted);
   font-size: 0.8rem;
   font-style: italic;
+}
+
+/* Paste-a-Yarn-script import panel */
+.yarn-import {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-1);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.yarn-import__header {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.yarn-import__header code {
+  color: var(--green-soft);
+  font-size: 0.78rem;
+}
+
+.yarn-import__attach {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.yarn-import__attach-preview {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.yarn-import__text {
+  width: 100%;
+  color: var(--text);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  resize: vertical;
+}
+
+.yarn-import__text:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+
+.yarn-import__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.yarn-import__warnings {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--orange);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }

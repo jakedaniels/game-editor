@@ -114,7 +114,7 @@ export function ResponseWheel({ responses, onSelect }: ResponseWheelProps) {
         )}
       </span>
       <span className="response-card__speaker">{r.character?.name ?? 'Unknown'}</span>
-      <span className="response-card__text">{r.text || '(no text)'}</span>
+      <span className="response-card__text">{r.option_label || r.text || '(no text)'}</span>
       {Boolean(r.requirements?.length || r.effects?.length) && (
         <span className="dialogue-badges response-card__badges">
           {((r.requirements ?? []) as DialogueRequirement[]).map((requirement, index) => (

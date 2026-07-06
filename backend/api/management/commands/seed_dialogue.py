@@ -52,33 +52,33 @@ class Command(BaseCommand):
         )
 
         # --- Scene 5: the crossroads ---------------------------------------------------------
-        root5 = Dialogue.objects.create(
+        root5 = Dialogue.create_node(
             scene=scene5,
-            character=guide,
+            character_id=guide.id,
             text="Welcome, traveler. The road ahead is dangerous. What will you do?",
         )
-        ask = Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="Tell me more about the danger.")
-        shop = Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="I'd like to buy supplies first.")
-        leave = Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="I'll go it alone. Step aside.")
-        Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="Who are you, really?")
-        Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="Do you have a map I can use?")
-        Dialogue.objects.create(scene=scene5, parent=root5, character=hero, text="Is there another way around?")
+        ask = Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="Tell me more about the danger.")
+        shop = Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="I'd like to buy supplies first.")
+        leave = Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="I'll go it alone. Step aside.")
+        Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="Who are you, really?")
+        Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="Do you have a map I can use?")
+        Dialogue.create_node(scene=scene5, parent=root5, character_id=hero.id, text="Is there another way around?")
 
-        Dialogue.objects.create(scene=scene5, parent=ask, character=guide, text="Bandits hold the pass. They are many.")
-        Dialogue.objects.create(scene=scene5, parent=ask, character=guide, text="A dragon sleeps beyond the ridge. Tread softly.")
-        Dialogue.objects.create(scene=scene5, parent=shop, character=merchant, text="Potions and rope, half price for you.")
-        Dialogue.objects.create(scene=scene5, parent=shop, character=hero, text="On second thought, I have no coin.")
-        Dialogue.objects.create(scene=scene5, parent=leave, character=guide, text="Then may fortune favor your reckless heart.")
+        Dialogue.create_node(scene=scene5, parent=ask, character_id=guide.id, text="Bandits hold the pass. They are many.")
+        Dialogue.create_node(scene=scene5, parent=ask, character_id=guide.id, text="A dragon sleeps beyond the ridge. Tread softly.")
+        Dialogue.create_node(scene=scene5, parent=shop, character_id=merchant.id, text="Potions and rope, half price for you.")
+        Dialogue.create_node(scene=scene5, parent=shop, character_id=hero.id, text="On second thought, I have no coin.")
+        Dialogue.create_node(scene=scene5, parent=leave, character_id=guide.id, text="Then may fortune favor your reckless heart.")
 
         # --- Scene 6: the campfire -----------------------------------------------------------
-        root6 = Dialogue.objects.create(
+        root6 = Dialogue.create_node(
             scene=scene6,
-            character=guide,
+            character_id=guide.id,
             text="The fire is warm. We should rest before the climb. Care to talk?",
         )
-        Dialogue.objects.create(scene=scene6, parent=root6, character=hero, text="What lies at the summit?")
-        Dialogue.objects.create(scene=scene6, parent=root6, character=hero, text="Tell me of your past.")
-        Dialogue.objects.create(scene=scene6, parent=root6, character=hero, text="Let's just sleep. Goodnight.")
+        Dialogue.create_node(scene=scene6, parent=root6, character_id=hero.id, text="What lies at the summit?")
+        Dialogue.create_node(scene=scene6, parent=root6, character_id=hero.id, text="Tell me of your past.")
+        Dialogue.create_node(scene=scene6, parent=root6, character_id=hero.id, text="Let's just sleep. Goodnight.")
 
         total = Dialogue.objects.count()
         self.stdout.write(

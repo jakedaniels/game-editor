@@ -21,6 +21,7 @@ export type Scene = components['schemas']['SceneOut'];
 export type DialogueSummary = components['schemas']['DialogueSummaryOut'];
 export type DialogueDetail = components['schemas']['DialogueDetailOut'];
 export type DialogueNode = components['schemas']['DialogueNodeOut'];
+export type DialogueParent = components['schemas']['DialogueParentOut'];
 
 export type User = components['schemas']['UserOut'];
 

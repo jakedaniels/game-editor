@@ -81,6 +81,16 @@ export default function DialogueEditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('focus');
   const [treeNodes, setTreeNodes] = useState<DialogueNode[]>([]);
+  const [importingYarn, setImportingYarn] = useState(false);
+  const [yarnText, setYarnText] = useState('');
+  const [yarnWarnings, setYarnWarnings] = useState<string[]>([]);
+  const [yarnError, setYarnError] = useState<string | null>(null);
+  const [attachYarnToCurrent, setAttachYarnToCurrent] = useState(true);
+  const [exportingYarn, setExportingYarn] = useState(false);
+  const [exportFilename, setExportFilename] = useState('');
+  const [exportText, setExportText] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportCopied, setExportCopied] = useState(false);
 
   // Load project-level game memory, including remembered choices/items/stats/flags.
   useEffect(() => {
@@ -269,6 +279,71 @@ export default function DialogueEditorPage() {
     if (viewMode === 'tree') loadTree(); // reflect the new node/edge in the graph
   }
 
+  async function handleImportYarn() {
+    if (sceneId == null || !yarnText.trim()) return;
+    const attachTo = attachYarnToCurrent && currentId != null ? currentId : undefined;
+    const { data, error } = await api.POST('/api/scenes/{scene_id}/import-yarn', {
+      params: { path: { scene_id: sceneId } },
+      body: { text: yarnText, parent_id: attachTo },
+    });
+    if (error || !data) {
+      setYarnError((error as { error?: string })?.error ?? 'Import failed');
+      setYarnWarnings([]);
+      return;
+    }
+    setYarnError(null);
+    setYarnWarnings(data.warnings);
+    setYarnText('');
+
+    if (attachTo != null) {
+      await loadDialogue(attachTo); // refresh the wheel so the new response(s) show up
+    } else {
+      const roots = await api.GET('/api/dialogues', { params: { query: { scene_id: sceneId } } });
+      const rootDialogues = roots.data ?? [];
+      const preferred = data.root_ids.find((id) => rootDialogues.some((r) => r.id === id));
+      setCurrentId(preferred ?? rootDialogues[0]?.id ?? null);
+    }
+    if (viewMode === 'tree') loadTree();
+  }
+
+  async function handleExportYarn() {
+    if (sceneId == null) return;
+    setImportingYarn(false);
+    setExportingYarn(true);
+    setExportCopied(false);
+    const { data, error } = await api.GET('/api/scenes/{scene_id}/export-yarn', {
+      params: { path: { scene_id: sceneId } },
+    });
+    if (error || !data) {
+      setExportError('Export failed');
+      setExportText('');
+      return;
+    }
+    setExportError(null);
+    setExportFilename(data.filename);
+    setExportText(data.text);
+  }
+
+  function handleCopyExport() {
+    navigator.clipboard
+      .writeText(exportText)
+      .then(() => {
+        setExportCopied(true);
+        setTimeout(() => setExportCopied(false), 1500);
+      })
+      .catch(() => setExportError('Copy failed — use Download instead'));
+  }
+
+  function handleDownloadExport() {
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = exportFilename || 'scene.yarn';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const selectedScene = scenes.find((s) => s.id === sceneId) ?? null;
   const addLabel = currentId == null ? '＋ Add dialogue' : '＋ Add response';
 
@@ -293,21 +368,128 @@ export default function DialogueEditorPage() {
         )}
 
         {sceneId != null && (
-          <div className="dialogue-editor__viewtoggle">
+          <div className="dialogue-editor__toolbar">
+            <div className="dialogue-editor__viewtoggle">
+              <button
+                type="button"
+                className={`dialogue-editor__viewbtn${viewMode === 'focus' ? ' is-active' : ''}`}
+                onClick={() => setViewMode('focus')}
+              >
+                Focus
+              </button>
+              <button
+                type="button"
+                className={`dialogue-editor__viewbtn${viewMode === 'tree' ? ' is-active' : ''}`}
+                onClick={() => setViewMode('tree')}
+              >
+                Tree
+              </button>
+            </div>
             <button
               type="button"
-              className={`dialogue-editor__viewbtn${viewMode === 'focus' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('focus')}
+              className="dialogue-editor__back"
+              onClick={() => {
+                setImportingYarn((prev) => !prev);
+                setExportingYarn(false);
+                setYarnError(null);
+                setYarnWarnings([]);
+              }}
             >
-              Focus
+              {importingYarn ? 'Close Yarn import' : 'Import Yarn'}
             </button>
             <button
               type="button"
-              className={`dialogue-editor__viewbtn${viewMode === 'tree' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('tree')}
+              className="dialogue-editor__back"
+              onClick={() => (exportingYarn ? setExportingYarn(false) : handleExportYarn())}
             >
-              Tree
+              {exportingYarn ? 'Close Yarn export' : 'Export Yarn'}
             </button>
+          </div>
+        )}
+
+        {exportingYarn && sceneId != null && (
+          <div className="yarn-import">
+            <div className="yarn-import__header">
+              This scene's dialogue graph as a Yarn script — straight lines are merged into one
+              node; branches and shared nodes get their own <code>title:</code> and a real{' '}
+              <code>&lt;&lt;jump&gt;&gt;</code>. Variable <code>&lt;&lt;declare&gt;&gt;</code>{' '}
+              headers aren't included (to avoid duplicate declarations across multiple exported
+              scenes) — add them once yourself if your Yarn Spinner setup requires them.
+            </div>
+            {exportError && <p className="dialogue-editor__error">{exportError}</p>}
+            {!exportError && (
+              <>
+                <textarea className="yarn-import__text" value={exportText} readOnly rows={14} />
+                <div className="yarn-import__actions">
+                  <button type="button" className="btn btn--primary" onClick={handleDownloadExport}>
+                    Download {exportFilename}
+                  </button>
+                  <button type="button" className="btn" onClick={handleCopyExport}>
+                    {exportCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setExportingYarn(false)}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {importingYarn && sceneId != null && (
+          <div className="yarn-import">
+            <div className="yarn-import__header">
+              Paste a Yarn script — each <code>title:</code> block becomes a chain of nodes;
+              <code>-&gt; options</code> and <code>&lt;&lt;jump&gt;&gt;</code> become branches
+              (into new nodes or existing ones, by title).
+            </div>
+            {currentId != null && (
+              <label className="yarn-import__attach">
+                <input
+                  type="checkbox"
+                  checked={attachYarnToCurrent}
+                  onChange={(event) => setAttachYarnToCurrent(event.target.checked)}
+                />
+                Attach the first node to the one currently open
+                {attachYarnToCurrent && detail && (
+                  <span className="yarn-import__attach-preview">
+                    “{(detail.text || '(no text)').slice(0, 60)}”
+                  </span>
+                )}
+              </label>
+            )}
+            <textarea
+              className="yarn-import__text"
+              value={yarnText}
+              onChange={(event) => setYarnText(event.target.value)}
+              placeholder={'title: Greeting\n---\nGuide: Welcome, traveler.\n-> Tell me more.\n    <<jump Danger>>\n===\n'}
+              rows={10}
+            />
+            <div className="yarn-import__actions">
+              <button type="button" className="btn btn--primary" onClick={handleImportYarn}>
+                Import
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setImportingYarn(false);
+                  setYarnText('');
+                  setYarnError(null);
+                  setYarnWarnings([]);
+                }}
+              >
+                Close
+              </button>
+            </div>
+            {yarnError && <p className="dialogue-editor__error">{yarnError}</p>}
+            {yarnWarnings.length > 0 && (
+              <ul className="yarn-import__warnings">
+                {yarnWarnings.map((warning, index) => (
+                  <li key={index}>{warning}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -339,16 +521,32 @@ export default function DialogueEditorPage() {
         ) : detail ? (
           <>
             <div className="dialogue-editor__parent">
-              {detail.parent_id != null ? (
+              {detail.parents.length === 0 ? (
+                <span className="dialogue-editor__root-label">Root dialogue</span>
+              ) : detail.parents.length === 1 ? (
                 <button
                   type="button"
                   className="dialogue-editor__back"
-                  onClick={() => setCurrentId(detail.parent_id ?? null)}
+                  onClick={() => setCurrentId(detail.parents[0].id)}
                 >
                   ▲ Back to parent
                 </button>
               ) : (
-                <span className="dialogue-editor__root-label">Root dialogue</span>
+                <div className="dialogue-editor__parent-picker">
+                  <span className="dialogue-editor__parent-picker-label">
+                    ▲ Back to — reached from {detail.parents.length} places:
+                  </span>
+                  {detail.parents.map((parent) => (
+                    <button
+                      key={parent.id}
+                      type="button"
+                      className="dialogue-editor__back"
+                      onClick={() => setCurrentId(parent.id)}
+                    >
+                      {parent.text || parent.title}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
