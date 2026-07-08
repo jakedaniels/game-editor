@@ -37,6 +37,11 @@
   text-shadow: 0 0 12px var(--orange-glow);
 }
 
+.sidebar__add {
+  margin-top: 0.85rem;
+  width: 100%;
+}
+
 .sidebar--right .sidebar__title {
   color: var(--green-soft);
   text-shadow: 0 0 12px var(--green-glow);

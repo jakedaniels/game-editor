@@ -120,10 +120,38 @@ class CharacterRelationship(models.Model):
         return f"{self.from_character.name} → {self.to_character.name}: {self.relationship}"
 
 
+class Location(models.Model):
+    """A place within a level. Characters can be present here; scenes can take place here.
+
+    Belongs to a level (like a scene). Its `characters` M2M is the manually-assigned cast
+    "present at" this location; a location's scenes are its `scenes` (Scene.location).
+    """
+
+    level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name="locations")
+    name = models.CharField(max_length=100, default="New Location")
+    description = models.TextField(blank=True, default="")
+    order = models.PositiveIntegerField(default=0)
+    # Characters present at this location (manually assigned, editable on the Locations page).
+    characters = models.ManyToManyField(Character, related_name="locations", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.level.name} / {self.name}"
+
+
 class Scene(models.Model):
     """A scene within a level. Contains the characters present in it."""
 
     level = models.ForeignKey(Level, on_delete=models.CASCADE, related_name="scenes")
+    # The location this scene takes place at (optional). SET_NULL so deleting a location
+    # doesn't delete its scenes; nullable so scenes created from the Dialogue editor need none.
+    location = models.ForeignKey(
+        "Location", null=True, blank=True, on_delete=models.SET_NULL, related_name="scenes"
+    )
     name = models.CharField(max_length=100)
     order = models.PositiveIntegerField(default=0)
     # A character can appear in many scenes, so this is many-to-many.

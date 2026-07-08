@@ -20,6 +20,7 @@ from .models import (
     Dialogue,
     DialogueEdge,
     Level,
+    Location,
     Project,
     Scene,
     User,
@@ -177,6 +178,52 @@ class SceneOut(Schema):
     name: str
     level_id: int
     level_name: str
+    location_id: int | None = None
+
+
+class SceneCreateIn(Schema):
+    name: str = "New Scene"
+    level_id: int
+    location_id: int | None = None
+    order: int | None = None  # None => appended after the level's current last scene
+
+
+class SceneUpdateIn(Schema):
+    """Partial update — omitted fields are left unchanged."""
+
+    name: str | None = None
+    location_id: int | None = None
+    order: int | None = None
+
+
+class LocationOut(Schema):
+    """A place within a level, plus the characters manually placed there."""
+
+    id: int
+    name: str
+    description: str = ""
+    order: int
+    level_id: int
+    characters: list[CharacterOut] = []
+
+
+class LocationCreateIn(Schema):
+    name: str = "New Location"
+    description: str = ""
+    order: int | None = None  # None => appended after the level's current last location
+    level_id: int | None = None
+
+
+class LocationUpdateIn(Schema):
+    """Partial update — omitted fields are left unchanged."""
+
+    name: str | None = None
+    description: str | None = None
+    order: int | None = None
+
+
+class LocationCharacterIn(Schema):
+    character_id: int
 
 
 class DialogueSummaryOut(Schema):
@@ -593,18 +640,139 @@ def level_characters(request, level_id: int):
     return list(by_char.values())
 
 
+def _scene_out(scene: Scene) -> dict:
+    return {
+        "id": scene.id,
+        "name": scene.name,
+        "level_id": scene.level_id,
+        "level_name": scene.level.name,
+        "location_id": scene.location_id,
+    }
+
+
 @api.get("/scenes", response=list[SceneOut], summary="List scenes")
 def list_scenes(request):
     scenes = Scene.objects.select_related("level").all()
-    return [
-        {
-            "id": s.id,
-            "name": s.name,
-            "level_id": s.level_id,
-            "level_name": s.level.name,
-        }
-        for s in scenes
-    ]
+    return [_scene_out(s) for s in scenes]
+
+
+@api.post("/scenes", response={201: SceneOut}, summary="Create a scene")
+def create_scene(request, payload: SceneCreateIn):
+    """Create a scene in a level (optionally at a location). Order auto-appends within the level."""
+    level = get_object_or_404(Level, id=payload.level_id)
+    if payload.order is not None:
+        order = payload.order
+    else:
+        last = Scene.objects.filter(level_id=level.id).order_by("-order").first()
+        order = (last.order + 1) if last else 0
+    scene = Scene.objects.create(
+        name=payload.name,
+        level=level,
+        location_id=payload.location_id,
+        order=order,
+    )
+    scene.level = level  # ensure level_name resolves without a re-query
+    return 201, _scene_out(scene)
+
+
+@api.patch("/scenes/{int:scene_id}", response=SceneOut, summary="Update a scene")
+def update_scene(request, scene_id: int, payload: SceneUpdateIn):
+    """Partial update: rename, (re)assign to a location, or reorder."""
+    scene = get_object_or_404(Scene.objects.select_related("level"), id=scene_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        scene.name = data["name"]
+    if "location_id" in data:
+        scene.location_id = data["location_id"]
+    if "order" in data and data["order"] is not None:
+        scene.order = data["order"]
+    scene.save()
+    return _scene_out(scene)
+
+
+# --- Locations (places within a level) --------------------------------------------------------
+def _location(location_id: int) -> Location:
+    """Fetch a location with its characters prefetched (for LocationOut serialization)."""
+    return get_object_or_404(
+        Location.objects.prefetch_related("characters"), id=location_id
+    )
+
+
+@api.get("/locations", response=list[LocationOut], summary="List locations")
+def list_locations(request, level_id: int | None = None):
+    """All locations, or just one level's locations when `level_id` is given."""
+    qs = Location.objects.prefetch_related("characters")
+    if level_id is not None:
+        qs = qs.filter(level_id=level_id)
+    return list(qs)
+
+
+@api.post("/locations", response={201: LocationOut}, summary="Create a location")
+def create_location(request, payload: LocationCreateIn):
+    if payload.order is not None:
+        order = payload.order
+    else:
+        last = Location.objects.filter(level_id=payload.level_id).order_by("-order").first()
+        order = (last.order + 1) if last else 0
+    location = Location.objects.create(
+        name=payload.name,
+        description=payload.description,
+        order=order,
+        level_id=payload.level_id,
+    )
+    return 201, _location(location.id)
+
+
+@api.get("/locations/{int:location_id}", response=LocationOut, summary="Get a location")
+def get_location(request, location_id: int):
+    return _location(location_id)
+
+
+@api.patch("/locations/{int:location_id}", response=LocationOut, summary="Update a location")
+def update_location(request, location_id: int, payload: LocationUpdateIn):
+    location = get_object_or_404(Location, id=location_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        location.name = data["name"]
+    if "description" in data and data["description"] is not None:
+        location.description = data["description"]
+    if "order" in data and data["order"] is not None:
+        location.order = data["order"]
+    location.save()
+    return _location(location.id)
+
+
+@api.delete("/locations/{int:location_id}", response={204: None}, summary="Delete a location")
+def delete_location(request, location_id: int):
+    get_object_or_404(Location, id=location_id).delete()
+    return 204, None
+
+
+@api.post(
+    "/locations/{int:location_id}/characters",
+    response={200: LocationOut, 400: Error, 404: Error},
+    summary="Place a character at a location",
+)
+def add_location_character(request, location_id: int, payload: LocationCharacterIn):
+    location = get_object_or_404(Location.objects.select_related("level"), id=location_id)
+    character = Character.objects.filter(id=payload.character_id).first()
+    if character is None:
+        return 404, {"error": "Character not found"}
+    if character.project_id != location.level.project_id:
+        return 400, {"error": "Character must be in the same project as the level"}
+    location.characters.add(character)
+    return 200, _location(location.id)
+
+
+@api.delete(
+    "/locations/{int:location_id}/characters/{int:character_id}",
+    response={200: LocationOut},
+    summary="Remove a character from a location",
+)
+def remove_location_character(request, location_id: int, character_id: int):
+    location = get_object_or_404(Location, id=location_id)
+    location.characters.remove(character_id)
+    return 200, _location(location.id)
 
 
 @api.get(

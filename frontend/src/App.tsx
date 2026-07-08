@@ -9,6 +9,7 @@ import ProjectPreviewPage from './pages/ProjectPreviewPage';
 import LevelsPage from './pages/LevelsPage';
 import LevelHomePage from './pages/LevelHomePage';
 import LevelCharactersPage from './pages/LevelCharactersPage';
+import LocationsPage from './pages/LocationsPage';
 import ShapeEditorPage from './pages/ShapeEditorPage';
 import DialogueEditorPage from './pages/DialogueEditorPage';
 import CharactersPage from './pages/CharactersPage';
@@ -88,6 +89,10 @@ export default function App() {
           <Route
             path="/projects/:projectId/levels/:levelId/characters"
             element={<LevelCharactersPage />}
+          />
+          <Route
+            path="/projects/:projectId/levels/:levelId/locations"
+            element={<LocationsPage />}
           />
           <Route
             path="/projects/:projectId/characters/:characterId"
