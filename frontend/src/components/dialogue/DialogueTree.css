@@ -93,3 +93,14 @@
   opacity: 0;
   pointer-events: none;
 }
+
+.dtree-node__badges {
+  justify-content: flex-start;
+  margin-top: 0.45rem;
+}
+
+.dtree-node__badges .dialogue-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

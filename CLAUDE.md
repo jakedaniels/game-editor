@@ -80,22 +80,29 @@ module declarations for CSS/asset imports — keep it.
   render the SVG canvas (create via click-drag with a shape tool, move via the select tool).
 - **Dialogue editor** (`pages/DialogueEditorPage.tsx`): reached via a project's Levels tab → a
   level; reads `projectId`/`levelId` from the route and filters `/api/scenes` to that level.
-  **Scoped to a scene**: owns
-  `sceneId` + `currentId`; selecting a scene loads its root via `GET /api/dialogues?scene_id=`, then
-  `GET /api/dialogues/{id}` for the focused node. Components in `components/dialogue/`:
-  `ScenesSidebar` (left, controlled — switches the active scene), `CharactersSidebar` (right),
-  `DialogueBlob` (current node + Edit), `ResponseWheel` (horizontal child cards; click →
+  **Scoped to a scene**: owns `sceneId` + `currentId`; selecting a scene loads its root via
+  `GET /api/dialogues?scene_id=`, then `GET /api/dialogues/{id}` for the focused node. A dialogue
+  is a node in a **graph**, not a tree — it can be reached from more than one place (see the
+  backend model below), so `detail.parents` is a list: "Back to parent" is a plain button when
+  there's exactly one, and a picker when a node is reached from several places. Components in
+  `components/dialogue/`: `ScenesSidebar` (left, controlled — switches the active scene),
+  `CharactersSidebar` (right), `DialogueBlob` (current node + Edit), `ResponseWheel` (horizontal
+  child cards; shows each edge's `option_label`, falling back to the target's own text; click →
   `currentId`), `DialogueForm` (shared add/edit; its speaker `<select>` has a **"＋ New"** action
   that creates a character inline via `DialogueEditorPage.createCharacter` → `POST /api/characters`
-  and selects it). "Back to parent" uses `detail.parent_id`; Add/Edit call
-  `POST`/`PATCH /api/dialogues` (new nodes inherit the current `sceneId`).
+  and selects it). Add/Edit call `POST`/`PATCH /api/dialogues` (new nodes inherit the current
+  `sceneId`; `parent_id` attaches the new node as a response of another).
   A **Focus ⇄ Tree toggle** (`viewMode`) switches the stage between the one-node focused view above
   and **`DialogueTree`** — a zoomable/pannable **React Flow** (`@xyflow/react`) canvas of the whole
   scene. Tree mode fetches the flat node list via `GET /api/scenes/{id}/dialogues` (into `treeNodes`,
-  refetched after add/edit), hand-lays-out a tidy top-down tree (`layoutTree`, no layout lib),
+  refetched after add/edit; each node's `parent_ids` is a list), hand-lays-out a tidy top-down tree
+  (`layoutTree`, no layout lib — a node with multiple parents is positioned under its first/primary
+  parent for layout, but every incoming edge still renders as a line, so reconvergence is visible),
   renders custom node cards (avatar + speaker + text) with `<Controls>`/`<Background>`; on
   node-click it sets `currentId` (so the reused `DialogueBlob` below acts as the edit inspector)
-  and `setCenter`s to zoom in on that node.
+  and `setCenter`s to zoom in on that node. **Import/Export Yarn** panels (buttons next to the
+  Focus/Tree toggle) round-trip a scene's graph to/from Yarn script text — see the backend bullet
+  below for exactly what's supported.
 
 ### Backend (`backend/`) — Django + Django Ninja
 - `config/` — Django project: `settings.py` (env-driven via `.env`, see `.env.example`),
@@ -126,11 +133,15 @@ module declarations for CSS/asset imports — keep it.
     `image_key` at read time (never stored), so it can't go stale.
     Both return the character detail; both return **503** with a friendly message when the relevant
     credentials are unset/placeholder (see services below).
-  - Dialogue editor also uses: `GET /api/scenes`, `GET /api/dialogues?scene_id=` (a scene's roots),
-    `GET /api/dialogues/{id}` (node + its `responses`), `GET /api/scenes/{id}/dialogues` (**all**
-    nodes in a scene, flat — powers the Tree view; each node has `id`/`parent_id`/`text`/`character`),
-    `POST /api/dialogues` (create; `scene_id`/`parent_id`/`character_id`/`text`),
-    `PATCH /api/dialogues/{id}` (partial update of `text`/`character_id`).
+  - Dialogue editor also uses: `GET /api/scenes`, `GET /api/dialogues?scene_id=` (a scene's roots —
+    nodes with no incoming edges), `GET /api/dialogues/{id}` (node + its `responses` + `parents`),
+    `GET /api/scenes/{id}/dialogues` (**all** nodes in a scene, flat — powers the Tree view; each
+    node has `id`/`title`/`parent_ids`/`text`/`character`/`requirements`/`effects`),
+    `POST /api/dialogues` (create; `scene_id`/`parent_id`/`character_id`/`text`/`requirements`/
+    `effects` — `parent_id` attaches it as a response of another node), `PATCH /api/dialogues/{id}`
+    (partial update), `POST /api/dialogues/{id}/link` (`target_id`+`option_label`; attaches an
+    *existing* node as an additional response of another node — no new row, just a new edge —
+    the mechanism for two branches converging back onto the same node).
   - `GET /api/user` / `PATCH /api/user` — the **current user**. No real auth yet, so this is a
     single default user (created on first access via `_current_user()`); it stores per-user
     settings like the UI `theme`.
@@ -149,12 +160,38 @@ module declarations for CSS/asset imports — keep it.
   bucket. The S3 client pins the **regional** endpoint (`s3.<region>.amazonaws.com`) + virtual
   addressing so presigned URLs don't hit a 307 region-redirect that breaks the SigV4 signature —
   **`AWS_REGION` must match the bucket's actual region.**
+- **Yarn import/export** (`api/services/yarn_import.py`, `yarn_export.py`): `POST
+  /api/scenes/{id}/import-yarn` (`text`, optional `parent_id` to attach the first pasted node to
+  an existing one instead of a fresh root) parses a **bounded subset** of Yarn — `title:`/`---`/
+  `===` blocks, `Speaker: text` lines, `-> option` (inline body or `<<jump Target>>`, resolved
+  against both the pasted batch and existing node titles so branches can converge onto content
+  that's already there), and `<<if>>`/`<<set>>` mapped onto the `Dialogue.requirements`/`effects`
+  vocabulary below (see the module docstring for exactly what's supported). Anything outside that
+  subset is reported as a warning and skipped; a bad jump target aborts the *whole* import (one DB
+  transaction — never leaves orphaned nodes). `GET /api/scenes/{id}/export-yarn` walks the graph
+  back the other way: straight, unbranched chains collapse into one Yarn node's consecutive lines,
+  and a new `title:` block (using the dialogue's own `title`) starts only at branch or convergence
+  points, referenced by a real `<<jump>>` — never inlined, so every node appears in the output
+  exactly once. Deliberately does **not** emit `<<declare $var = ...>>` headers — `Project.
+  state_schema` has the info, but scenes commonly share state keys, and declaring the same
+  variable twice across multiple `.yarn` files loaded into one Yarn Spinner project is a compile
+  error; add declares by hand (or export project variables once, if that's built later).
 - `api/models.py`: `Project → Level → Scene` (FKs), `Character` (now `project` FK + `description`
   + `image_key`; `Scene ↔ Character` M2M), `CharacterRelationship` (directed labeled edge
   `from_character → to_character` with a `uniq_char_relationship` unique constraint; a character's
-  outgoing links are `relationships_out`), and
-  `Dialogue` — a self-referential branching node (`scene` FK, `parent` FK to self, `character` FK,
-  `text`). A dialogue's children are `dialogue.responses`; a scene's tree is its `parent=None` roots.
+  outgoing links are `relationships_out`), and `Dialogue` — a node in a branching dialogue
+  **graph** (`scene` FK, `character` FK, `text`, plus `requirements`/`effects` JSONB lists of typed
+  dicts — `has_item`/`stat_check`/`state_equals`/`remembered_choice` and `give_item`/`remove_item`/
+  `change_stat`/`set_flag`/`remember_choice` — a vocabulary deliberately bounded to what Yarn's
+  `<<if>>`/`<<set>>` can express, so a non-coder's "only show if…"/"when chosen, do…" pickers stay
+  simple). `title` is a stable, project-wide-unique, Yarn-friendly identifier: auto-generated from
+  the parent's title (or the scene) plus a running number, unless a `remember_choice` effect is
+  present, in which case it tracks that effect's `state_key` instead (`Dialogue.create_node()` /
+  `sync_title_from_effects()` — shared by both the API and `seed_dialogue`). Nodes are linked by
+  **`DialogueEdge`** (`from_node`/`to_node` FKs, `order`, `option_label` — overrides the response's
+  displayed text, falling back to `to_node.text` when blank) rather than a single `parent` FK, so a
+  node can be reached from more than one place (reuse/reconvergence) or form a loop; a scene's
+  roots are nodes with no `incoming_edges`.
   **`Project`** is the top-level game container: `name`/`order` plus first-class `dimension` and
   `genre` columns, and two **JSONB** fields — `systems` (the per-system enabled+answers, shape
   defined by `gameSystems.ts`) and `hud_layout` (`{systemId: {x,y}}`). Hybrid on purpose: the
@@ -210,14 +247,23 @@ type ShapeType = 'rectangle' | 'ellipse';
 interface Shape { id: string; type: ShapeType; x: number; y: number; width: number; height: number; }
 ```
 
-Backend dialogue node (`backend/api/models.py`) — basic, to be expanded later:
+Backend dialogue graph (`backend/api/models.py`):
 ```python
 class Dialogue(models.Model):
-    scene = ForeignKey(Scene, null=True, related_name="dialogues")     # which scene's tree
-    parent = ForeignKey("self", null=True, related_name="responses")   # None == scene root
+    scene = ForeignKey(Scene, null=True, related_name="dialogues")
+    title = CharField(unique=True)                     # stable, Yarn-friendly id (auto-generated)
     character = ForeignKey(Character, null=True, related_name="dialogues")
     text = TextField(blank=True, default="")
+    requirements = JSONField(default=list, blank=True)  # gate: only show this response if...
+    effects = JSONField(default=list, blank=True)       # when chosen: do...
+
+class DialogueEdge(models.Model):
+    from_node = ForeignKey(Dialogue, related_name="outgoing_edges")
+    to_node = ForeignKey(Dialogue, related_name="incoming_edges")
+    option_label = CharField(blank=True, default="")    # "" -> falls back to to_node.text
+    order = PositiveIntegerField(default=0)
 ```
+A scene's roots are `Dialogue`s with no `incoming_edges`.
 
 ## Deliberately out of scope (for now)
 

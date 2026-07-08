@@ -4,8 +4,12 @@ import {
   api,
   type Character,
   type DialogueDetail,
+  type DialogueEffect,
   type DialogueNode,
+  type DialogueRequirement,
+  type Project,
   type Scene,
+  type StateSchema,
 } from '../api/client';
 import { ScenesSidebar } from '../components/dialogue/ScenesSidebar';
 import { CharactersSidebar } from '../components/dialogue/CharactersSidebar';
@@ -13,9 +17,47 @@ import { DialogueBlob } from '../components/dialogue/DialogueBlob';
 import { DialogueForm } from '../components/dialogue/DialogueForm';
 import { ResponseWheel } from '../components/dialogue/ResponseWheel';
 import { DialogueTree } from '../components/dialogue/DialogueTree';
+import { MemoryComboBox } from '../components/dialogue/MemoryComboBox';
 import '../components/dialogue/DialogueEditor.css';
 
+
 type ViewMode = 'focus' | 'tree';
+
+function getStateEntriesForRequirement(
+  stateSchema: StateSchema,
+  requirementType: 'remembered_choice' | 'has_item' | 'stat_check' | 'flag',
+) {
+  const stateType =
+    requirementType === 'has_item'
+      ? 'item'
+      : requirementType === 'stat_check'
+        ? 'stat'
+        : requirementType === 'remembered_choice'
+          ? 'remembered_choice'
+          : 'flag';
+
+  return Object.values(stateSchema).filter((entry) => entry.type === stateType);
+}
+
+function getRequirementLabel(requirement: DialogueRequirement, stateSchema: StateSchema) {
+  const entry = stateSchema[requirement.state_key];
+  const label = entry?.label ?? requirement.state_key;
+
+  if (requirement.type === 'has_item') return `Requires item: ${label}`;
+
+  if (requirement.type === 'stat_check') {
+    const opLabel =
+      requirement.op === 'at_least'
+        ? 'at least'
+        : requirement.op === 'less_than'
+          ? 'less than'
+          : 'equal to';
+    return `Requires stat: ${label} ${opLabel} ${requirement.value}`;
+  }
+
+  if (entry?.type === 'remembered_choice') return `Requires choice: ${label}`;
+  return `Requires: ${label} = ${requirement.value === true ? 'Yes' : String(requirement.value)}`;
+}
 
 export default function DialogueEditorPage() {
   const { projectId, levelId } = useParams();
@@ -24,10 +66,43 @@ export default function DialogueEditorPage() {
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [detail, setDetail] = useState<DialogueDetail | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
   const [adding, setAdding] = useState(false);
+  const [addRequirements, setAddRequirements] = useState<DialogueRequirement[]>([]);
+  const [addRequirementType, setAddRequirementType] = useState<
+    'remembered_choice' | 'has_item' | 'stat_check' | 'flag'
+  >('remembered_choice');
+  const [addRequirementStateKey, setAddRequirementStateKey] = useState('');
+  const [addRequirementStatOp, setAddRequirementStatOp] = useState<
+    'at_least' | 'less_than' | 'equals'
+  >('at_least');
+  const [addRequirementValue, setAddRequirementValue] = useState(1);
+  const [addRequirementFlagValue, setAddRequirementFlagValue] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('focus');
   const [treeNodes, setTreeNodes] = useState<DialogueNode[]>([]);
+  const [importingYarn, setImportingYarn] = useState(false);
+  const [yarnText, setYarnText] = useState('');
+  const [yarnWarnings, setYarnWarnings] = useState<string[]>([]);
+  const [yarnError, setYarnError] = useState<string | null>(null);
+  const [attachYarnToCurrent, setAttachYarnToCurrent] = useState(true);
+  const [exportingYarn, setExportingYarn] = useState(false);
+  const [exportFilename, setExportFilename] = useState('');
+  const [exportText, setExportText] = useState('');
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportCopied, setExportCopied] = useState(false);
+
+  // Load project-level game memory, including remembered choices/items/stats/flags.
+  useEffect(() => {
+    if (!projectId) return;
+    api.GET('/api/projects/{project_id}', {
+      params: { path: { project_id: Number(projectId) } },
+    }).then(({ data, error }) => {
+      if (error || !data) return setError('Failed to load project');
+      setError(null);
+      setProject(data);
+    });
+  }, [projectId]);
 
   // Characters power both the right sidebar and the form dropdowns (scoped to this project).
   useEffect(() => {
@@ -52,6 +127,7 @@ export default function DialogueEditorPage() {
   useEffect(() => {
     if (sceneId == null) return;
     setAdding(false);
+    setAddRequirements([]);
     api
       .GET('/api/dialogues', { params: { query: { scene_id: sceneId } } })
       .then(({ data, error }) => {
@@ -96,15 +172,36 @@ export default function DialogueEditorPage() {
     if (viewMode === 'tree') loadTree();
   }, [viewMode, loadTree]);
 
-  async function handleEdit(text: string, characterId: number | null) {
+  async function saveStateSchema(next: StateSchema) {
+    if (!projectId || !project) return;
+    const { data, error } = await api.PATCH('/api/projects/{project_id}', {
+      params: { path: { project_id: Number(projectId) } },
+      body: { state_schema: next },
+    });
+    if (error || !data) {
+      setError('Failed to save game memory');
+      return;
+    }
+    setError(null);
+    setProject(data);
+  }
+
+  async function handleEdit(
+    text: string,
+    characterId: number | null,
+    requirements?: DialogueRequirement[],
+    effects?: DialogueEffect[],
+    nextStateSchema?: StateSchema,
+  ) {
     if (currentId == null) return;
     const { data, error } = await api.PATCH('/api/dialogues/{dialogue_id}', {
       params: { path: { dialogue_id: currentId } },
-      body: { text, character_id: characterId },
+      body: { text, character_id: characterId, requirements, effects },
     });
     if (error || !data) return setError('Failed to save dialogue');
     setError(null);
     setDetail(data);
+    if (nextStateSchema) await saveStateSchema(nextStateSchema);
     if (viewMode === 'tree') loadTree(); // keep the graph in sync
   }
 
@@ -123,17 +220,128 @@ export default function DialogueEditorPage() {
     return data;
   }
 
+  function resetAddRequirementDraft() {
+    setAddRequirements([]);
+    setAddRequirementType('remembered_choice');
+    setAddRequirementStateKey('');
+    setAddRequirementStatOp('at_least');
+    setAddRequirementValue(1);
+    setAddRequirementFlagValue(true);
+  }
+
+  function handleAddRequirement() {
+    if (!addRequirementStateKey) return;
+
+    let nextRequirement: DialogueRequirement;
+    if (addRequirementType === 'has_item') {
+      nextRequirement = { type: 'has_item', state_key: addRequirementStateKey };
+    } else if (addRequirementType === 'stat_check') {
+      nextRequirement = {
+        type: 'stat_check',
+        state_key: addRequirementStateKey,
+        op: addRequirementStatOp,
+        value: addRequirementValue,
+      };
+    } else {
+      nextRequirement = {
+        type: 'state_equals',
+        state_key: addRequirementStateKey,
+        value: addRequirementFlagValue,
+      };
+    }
+
+    setAddRequirements((current) => [...current, nextRequirement]);
+    setAddRequirementStateKey('');
+  }
+
+  function handleRemoveAddRequirement(indexToRemove: number) {
+    setAddRequirements((current) => current.filter((_, index) => index !== indexToRemove));
+  }
+
   async function handleAdd(text: string, characterId: number | null) {
     if (sceneId == null) return;
     const { data, error } = await api.POST('/api/dialogues', {
-      body: { scene_id: sceneId, parent_id: currentId, character_id: characterId, text },
+      body: {
+        scene_id: sceneId,
+        parent_id: currentId,
+        character_id: characterId,
+        text,
+        requirements: addRequirements,
+        effects: [],
+      },
     });
     if (error || !data) return setError('Failed to add dialogue');
     setError(null);
     setAdding(false);
+    resetAddRequirementDraft();
     if (currentId == null) setCurrentId(data.id); // created this scene's first (root) node
     else await loadDialogue(currentId); // refresh so the new response shows in the wheel
     if (viewMode === 'tree') loadTree(); // reflect the new node/edge in the graph
+  }
+
+  async function handleImportYarn() {
+    if (sceneId == null || !yarnText.trim()) return;
+    const attachTo = attachYarnToCurrent && currentId != null ? currentId : undefined;
+    const { data, error } = await api.POST('/api/scenes/{scene_id}/import-yarn', {
+      params: { path: { scene_id: sceneId } },
+      body: { text: yarnText, parent_id: attachTo },
+    });
+    if (error || !data) {
+      setYarnError((error as { error?: string })?.error ?? 'Import failed');
+      setYarnWarnings([]);
+      return;
+    }
+    setYarnError(null);
+    setYarnWarnings(data.warnings);
+    setYarnText('');
+
+    if (attachTo != null) {
+      await loadDialogue(attachTo); // refresh the wheel so the new response(s) show up
+    } else {
+      const roots = await api.GET('/api/dialogues', { params: { query: { scene_id: sceneId } } });
+      const rootDialogues = roots.data ?? [];
+      const preferred = data.root_ids.find((id) => rootDialogues.some((r) => r.id === id));
+      setCurrentId(preferred ?? rootDialogues[0]?.id ?? null);
+    }
+    if (viewMode === 'tree') loadTree();
+  }
+
+  async function handleExportYarn() {
+    if (sceneId == null) return;
+    setImportingYarn(false);
+    setExportingYarn(true);
+    setExportCopied(false);
+    const { data, error } = await api.GET('/api/scenes/{scene_id}/export-yarn', {
+      params: { path: { scene_id: sceneId } },
+    });
+    if (error || !data) {
+      setExportError('Export failed');
+      setExportText('');
+      return;
+    }
+    setExportError(null);
+    setExportFilename(data.filename);
+    setExportText(data.text);
+  }
+
+  function handleCopyExport() {
+    navigator.clipboard
+      .writeText(exportText)
+      .then(() => {
+        setExportCopied(true);
+        setTimeout(() => setExportCopied(false), 1500);
+      })
+      .catch(() => setExportError('Copy failed — use Download instead'));
+  }
+
+  function handleDownloadExport() {
+    const blob = new Blob([exportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = exportFilename || 'scene.yarn';
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   const selectedScene = scenes.find((s) => s.id === sceneId) ?? null;
@@ -160,21 +368,128 @@ export default function DialogueEditorPage() {
         )}
 
         {sceneId != null && (
-          <div className="dialogue-editor__viewtoggle">
+          <div className="dialogue-editor__toolbar">
+            <div className="dialogue-editor__viewtoggle">
+              <button
+                type="button"
+                className={`dialogue-editor__viewbtn${viewMode === 'focus' ? ' is-active' : ''}`}
+                onClick={() => setViewMode('focus')}
+              >
+                Focus
+              </button>
+              <button
+                type="button"
+                className={`dialogue-editor__viewbtn${viewMode === 'tree' ? ' is-active' : ''}`}
+                onClick={() => setViewMode('tree')}
+              >
+                Tree
+              </button>
+            </div>
             <button
               type="button"
-              className={`dialogue-editor__viewbtn${viewMode === 'focus' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('focus')}
+              className="dialogue-editor__back"
+              onClick={() => {
+                setImportingYarn((prev) => !prev);
+                setExportingYarn(false);
+                setYarnError(null);
+                setYarnWarnings([]);
+              }}
             >
-              Focus
+              {importingYarn ? 'Close Yarn import' : 'Import Yarn'}
             </button>
             <button
               type="button"
-              className={`dialogue-editor__viewbtn${viewMode === 'tree' ? ' is-active' : ''}`}
-              onClick={() => setViewMode('tree')}
+              className="dialogue-editor__back"
+              onClick={() => (exportingYarn ? setExportingYarn(false) : handleExportYarn())}
             >
-              Tree
+              {exportingYarn ? 'Close Yarn export' : 'Export Yarn'}
             </button>
+          </div>
+        )}
+
+        {exportingYarn && sceneId != null && (
+          <div className="yarn-import">
+            <div className="yarn-import__header">
+              This scene's dialogue graph as a Yarn script — straight lines are merged into one
+              node; branches and shared nodes get their own <code>title:</code> and a real{' '}
+              <code>&lt;&lt;jump&gt;&gt;</code>. Variable <code>&lt;&lt;declare&gt;&gt;</code>{' '}
+              headers aren't included (to avoid duplicate declarations across multiple exported
+              scenes) — add them once yourself if your Yarn Spinner setup requires them.
+            </div>
+            {exportError && <p className="dialogue-editor__error">{exportError}</p>}
+            {!exportError && (
+              <>
+                <textarea className="yarn-import__text" value={exportText} readOnly rows={14} />
+                <div className="yarn-import__actions">
+                  <button type="button" className="btn btn--primary" onClick={handleDownloadExport}>
+                    Download {exportFilename}
+                  </button>
+                  <button type="button" className="btn" onClick={handleCopyExport}>
+                    {exportCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setExportingYarn(false)}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {importingYarn && sceneId != null && (
+          <div className="yarn-import">
+            <div className="yarn-import__header">
+              Paste a Yarn script — each <code>title:</code> block becomes a chain of nodes;
+              <code>-&gt; options</code> and <code>&lt;&lt;jump&gt;&gt;</code> become branches
+              (into new nodes or existing ones, by title).
+            </div>
+            {currentId != null && (
+              <label className="yarn-import__attach">
+                <input
+                  type="checkbox"
+                  checked={attachYarnToCurrent}
+                  onChange={(event) => setAttachYarnToCurrent(event.target.checked)}
+                />
+                Attach the first node to the one currently open
+                {attachYarnToCurrent && detail && (
+                  <span className="yarn-import__attach-preview">
+                    “{(detail.text || '(no text)').slice(0, 60)}”
+                  </span>
+                )}
+              </label>
+            )}
+            <textarea
+              className="yarn-import__text"
+              value={yarnText}
+              onChange={(event) => setYarnText(event.target.value)}
+              placeholder={'title: Greeting\n---\nGuide: Welcome, traveler.\n-> Tell me more.\n    <<jump Danger>>\n===\n'}
+              rows={10}
+            />
+            <div className="yarn-import__actions">
+              <button type="button" className="btn btn--primary" onClick={handleImportYarn}>
+                Import
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setImportingYarn(false);
+                  setYarnText('');
+                  setYarnError(null);
+                  setYarnWarnings([]);
+                }}
+              >
+                Close
+              </button>
+            </div>
+            {yarnError && <p className="dialogue-editor__error">{yarnError}</p>}
+            {yarnWarnings.length > 0 && (
+              <ul className="yarn-import__warnings">
+                {yarnWarnings.map((warning, index) => (
+                  <li key={index}>{warning}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -197,6 +512,7 @@ export default function DialogueEditorPage() {
                 key={detail.id}
                 detail={detail}
                 characters={characters}
+                stateSchema={(project?.state_schema ?? {}) as StateSchema}
                 onSave={handleEdit}
                 onCreateCharacter={createCharacter}
               />
@@ -205,16 +521,32 @@ export default function DialogueEditorPage() {
         ) : detail ? (
           <>
             <div className="dialogue-editor__parent">
-              {detail.parent_id != null ? (
+              {detail.parents.length === 0 ? (
+                <span className="dialogue-editor__root-label">Root dialogue</span>
+              ) : detail.parents.length === 1 ? (
                 <button
                   type="button"
                   className="dialogue-editor__back"
-                  onClick={() => setCurrentId(detail.parent_id ?? null)}
+                  onClick={() => setCurrentId(detail.parents[0].id)}
                 >
                   ▲ Back to parent
                 </button>
               ) : (
-                <span className="dialogue-editor__root-label">Root dialogue</span>
+                <div className="dialogue-editor__parent-picker">
+                  <span className="dialogue-editor__parent-picker-label">
+                    ▲ Back to — reached from {detail.parents.length} places:
+                  </span>
+                  {detail.parents.map((parent) => (
+                    <button
+                      key={parent.id}
+                      type="button"
+                      className="dialogue-editor__back"
+                      onClick={() => setCurrentId(parent.id)}
+                    >
+                      {parent.text || parent.title}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -222,6 +554,7 @@ export default function DialogueEditorPage() {
               key={detail.id}
               detail={detail}
               characters={characters}
+              stateSchema={(project?.state_schema ?? {}) as StateSchema}
               onSave={handleEdit}
               onCreateCharacter={createCharacter}
             />
@@ -238,13 +571,109 @@ export default function DialogueEditorPage() {
         {sceneId != null && (
           <div className="dialogue-editor__add">
             {adding ? (
-              <DialogueForm
-                characters={characters}
-                submitLabel={currentId == null ? 'Add dialogue' : 'Add response'}
-                onSubmit={handleAdd}
-                onCancel={() => setAdding(false)}
-                onCreateCharacter={createCharacter}
-              />
+              <>
+                <DialogueForm
+                  characters={characters}
+                  submitLabel={currentId == null ? 'Add dialogue' : 'Add response'}
+                  onSubmit={handleAdd}
+                  onCancel={() => {
+                    setAdding(false);
+                    resetAddRequirementDraft();
+                  }}
+                  onCreateCharacter={createCharacter}
+                />
+
+                {currentId != null && (
+                  <div className="dialogue-requirements">
+                    <div className="dialogue-effects__header">Only show this response if...</div>
+                    <div className="dialogue-effects__row">
+                      <select
+                        className="dialogue-effects__select"
+                        value={addRequirementType}
+                        onChange={(event) => {
+                          setAddRequirementType(
+                            event.target.value as 'remembered_choice' | 'has_item' | 'stat_check' | 'flag',
+                          );
+                          setAddRequirementStateKey('');
+                        }}
+                      >
+                        <option value="remembered_choice">Player previously chose</option>
+                        <option value="has_item">Player has item</option>
+                        <option value="stat_check">Stat check</option>
+                        <option value="flag">Flag is</option>
+                      </select>
+
+                      <MemoryComboBox
+                        entries={getStateEntriesForRequirement(
+                          (project?.state_schema ?? {}) as StateSchema,
+                          addRequirementType,
+                        )}
+                        value={addRequirementStateKey}
+                        placeholder="Search memory..."
+                        onChange={setAddRequirementStateKey}
+                      />
+
+                      {addRequirementType === 'stat_check' && (
+                        <>
+                          <select
+                            className="dialogue-effects__select"
+                            value={addRequirementStatOp}
+                            onChange={(event) =>
+                              setAddRequirementStatOp(event.target.value as 'at_least' | 'less_than' | 'equals')
+                            }
+                          >
+                            <option value="at_least">is at least</option>
+                            <option value="less_than">is less than</option>
+                            <option value="equals">equals</option>
+                          </select>
+                          <input
+                            className="dialogue-effects__number"
+                            type="number"
+                            value={addRequirementValue}
+                            onChange={(event) => setAddRequirementValue(Number(event.target.value))}
+                          />
+                        </>
+                      )}
+
+                      {addRequirementType === 'flag' && (
+                        <select
+                          className="dialogue-effects__select"
+                          value={addRequirementFlagValue ? 'true' : 'false'}
+                          onChange={(event) => setAddRequirementFlagValue(event.target.value === 'true')}
+                        >
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      )}
+
+                      <button type="button" className="dialogue-effects__add" onClick={handleAddRequirement}>
+                        Add requirement
+                      </button>
+                    </div>
+
+                    {addRequirements.length > 0 && (
+                      <div className="dialogue-effects__list">
+                        {addRequirements.map((requirement, index) => (
+                          <span
+                            key={`${requirement.type}-${requirement.state_key}-${index}`}
+                            className="dialogue-badge dialogue-badge--requirement"
+                          >
+                            {getRequirementLabel(requirement, (project?.state_schema ?? {}) as StateSchema)}
+                            <button
+                              type="button"
+                              className="dialogue-badge__remove"
+                              onClick={() => handleRemoveAddRequirement(index)}
+                              aria-label="Remove requirement"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             ) : (
               <button type="button" className="btn btn--add" onClick={() => setAdding(true)}>
                 {addLabel}

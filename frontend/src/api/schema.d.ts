@@ -286,8 +286,8 @@ export interface paths {
         };
         /**
          * All dialogue nodes in a scene (flat, for the tree view)
-         * @description Every dialogue node in a scene as a flat list — the frontend builds the tree from
-         *     `id`/`parent_id`. One JOIN (no N+1); each node's character serializes like everywhere else
+         * @description Every dialogue node in a scene as a flat list — the frontend builds the graph from
+         *     `id`/`parent_ids`. One JOIN (no N+1); each node's character serializes like everywhere else
          *     (presigned image URL via CharacterOut).
          */
         get: operations["api_api_scene_dialogue_tree"];
@@ -308,7 +308,7 @@ export interface paths {
         };
         /**
          * List root dialogues
-         * @description Root dialogues (no parent). Pass `scene_id` to get the roots for one scene.
+         * @description Root dialogues (no incoming edges). Pass `scene_id` to get the roots for one scene.
          */
         get: operations["api_api_list_root_dialogues"];
         put?: never;
@@ -332,7 +332,7 @@ export interface paths {
         };
         /**
          * Get a dialogue
-         * @description A dialogue with its character and immediate responses (its children).
+         * @description A dialogue with its character, immediate responses, and linking parent(s).
          */
         get: operations["api_api_get_dialogue"];
         put?: never;
@@ -345,6 +345,68 @@ export interface paths {
          * @description Partial update: only the fields present in the request body are changed.
          */
         patch: operations["api_api_update_dialogue"];
+        trace?: never;
+    };
+    "/api/dialogues/{dialogue_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link an existing node as a response (reuse/reconverge)
+         * @description Attach an existing node (`target_id`) as an additional response of `dialogue_id`,
+         *     without creating a new node — how two branches converge back onto the same node.
+         */
+        post: operations["api_api_link_dialogue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenes/{scene_id}/import-yarn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a Yarn script into a scene as dialogue nodes
+         * @description Parse a bounded subset of Yarn (see `services/yarn_import.py`) and materialize it as
+         *     dialogue nodes/edges in this scene. Pass `parent_id` to attach the pasted content as a new
+         *     response of that existing node instead of a freestanding root — continuing a branch that's
+         *     already there. All-or-nothing: a bad jump target aborts the whole import rather than
+         *     leaving orphaned nodes.
+         */
+        post: operations["api_api_import_yarn_view"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenes/{scene_id}/export-yarn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export a scene's dialogue graph as a Yarn script */
+        get: operations["api_api_export_yarn_view"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -507,6 +569,13 @@ export interface components {
             hud_layout: {
                 [key: string]: unknown;
             };
+            /**
+             * State Schema
+             * @default {}
+             */
+            state_schema: {
+                [key: string]: unknown;
+            };
         };
         /** ProjectCreateIn */
         ProjectCreateIn: {
@@ -538,6 +607,10 @@ export interface components {
             } | null;
             /** Hud Layout */
             hud_layout?: {
+                [key: string]: unknown;
+            } | null;
+            /** State Schema */
+            state_schema?: {
                 [key: string]: unknown;
             } | null;
         };
@@ -626,47 +699,121 @@ export interface components {
         };
         /**
          * DialogueNodeOut
-         * @description A single node in a scene's flat dialogue list — enough to lay out the whole tree.
+         * @description A single node in a scene's flat dialogue list — enough to lay out the whole graph.
          */
         DialogueNodeOut: {
             /** Id */
             id: number;
-            /** Parent Id */
-            parent_id?: number | null;
+            /** Title */
+            title: string;
+            /**
+             * Parent Ids
+             * @default []
+             */
+            parent_ids: number[];
             /** Text */
             text: string;
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * DialogueSummaryOut
-         * @description Lightweight dialogue used for root lists and response cards.
+         * @description Lightweight dialogue used for root lists and response cards. `option_label` is the
+         *     edge's player-facing choice text (falls back to `text` when the edge has none set).
          */
         DialogueSummaryOut: {
             /** Id */
             id: number;
+            /** Title */
+            title: string;
             /** Text */
             text: string;
+            /**
+             * Option Label
+             * @default
+             */
+            option_label: string;
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * DialogueDetailOut
-         * @description The current dialogue plus its immediate responses (the wheel).
+         * @description The current dialogue plus its immediate responses (the wheel) and the node(s) that
+         *     link to it (0 = scene root, 1 = normal back-nav, 2+ = picker).
          */
         DialogueDetailOut: {
             /** Id */
             id: number;
+            /** Title */
+            title: string;
             /** Text */
             text: string;
             /** Scene Id */
             scene_id?: number | null;
-            /** Parent Id */
-            parent_id?: number | null;
+            /**
+             * Parents
+             * @default []
+             */
+            parents: components["schemas"]["DialogueParentOut"][];
             character?: components["schemas"]["CharacterOut"] | null;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Effects
+             * @default []
+             */
+            effects: {
+                [key: string]: unknown;
+            }[];
             /**
              * Responses
              * @default []
              */
             responses: components["schemas"]["DialogueSummaryOut"][];
+        };
+        /**
+         * DialogueParentOut
+         * @description A node that links to the current one — powers the back-navigation picker when a
+         *     node is reachable from more than one place.
+         */
+        DialogueParentOut: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
         };
         /**
          * DialogueIn
@@ -684,6 +831,14 @@ export interface components {
              * @default
              */
             text: string;
+            /** Requirements */
+            requirements?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Effects */
+            effects?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /**
          * DialogueUpdateIn
@@ -694,6 +849,60 @@ export interface components {
             character_id?: number | null;
             /** Text */
             text?: string | null;
+            /** Requirements */
+            requirements?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Effects */
+            effects?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /**
+         * DialogueLinkIn
+         * @description Attach an existing node as an additional response of another existing node — the
+         *     concrete "reuse/reconverge" action (no new Dialogue row, just a new edge).
+         */
+        DialogueLinkIn: {
+            /** Target Id */
+            target_id: number;
+            /**
+             * Option Label
+             * @default
+             */
+            option_label: string;
+        };
+        /**
+         * YarnImportOut
+         * @description Result of a Yarn import: how much landed, its new root(s), and anything skipped.
+         */
+        YarnImportOut: {
+            /** Created */
+            created: number;
+            /**
+             * Root Ids
+             * @default []
+             */
+            root_ids: number[];
+            /**
+             * Warnings
+             * @default []
+             */
+            warnings: string[];
+        };
+        /** YarnImportIn */
+        YarnImportIn: {
+            /** Text */
+            text: string;
+            /** Parent Id */
+            parent_id?: number | null;
+        };
+        /** YarnExportOut */
+        YarnExportOut: {
+            /** Filename */
+            filename: string;
+            /** Text */
+            text: string;
         };
     };
     responses: never;
@@ -1361,6 +1570,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DialogueDetailOut"];
+                };
+            };
+        };
+    };
+    api_api_link_dialogue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dialogue_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DialogueLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DialogueDetailOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_import_yarn_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["YarnImportIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["YarnImportOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_export_yarn_view: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["YarnExportOut"];
                 };
             };
         };

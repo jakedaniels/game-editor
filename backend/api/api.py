@@ -4,11 +4,13 @@ Mounted at /api/ (see config/urls.py). Interactive docs are served at /api/docs.
 The schemas here drive the OpenAPI spec, which the frontend turns into typed TS
 (`npm run gen:api` -> frontend/src/api/schema.d.ts).
 """
+import re
+
 from django.shortcuts import get_object_or_404
 from ninja import File, NinjaAPI, Schema
 from ninja.files import UploadedFile
 
-from .services import imagegen, storage
+from .services import imagegen, storage, yarn_export, yarn_import
 
 from typing import Any
 
@@ -16,6 +18,7 @@ from .models import (
     Character,
     CharacterRelationship,
     Dialogue,
+    DialogueEdge,
     Level,
     Project,
     Scene,
@@ -111,6 +114,7 @@ class ProjectOut(Schema):
     genre: str
     systems: dict[str, Any] = {}  # ArchitectState (per-system enabled + answers)
     hud_layout: dict[str, Any] = {}  # HudLayout ({systemId: {x, y}})
+    state_schema: dict[str, Any] = {} # this is to help track effects/requirements in choices in dialogue
 
 
 class ProjectCreateIn(Schema):
@@ -128,6 +132,7 @@ class ProjectUpdateIn(Schema):
     genre: str | None = None
     systems: dict[str, Any] | None = None
     hud_layout: dict[str, Any] | None = None
+    state_schema: dict[str, Any] | None = None 
 
 
 class LevelOut(Schema):
@@ -175,31 +180,52 @@ class SceneOut(Schema):
 
 
 class DialogueSummaryOut(Schema):
-    """Lightweight dialogue used for root lists and response cards."""
+    """Lightweight dialogue used for root lists and response cards. `option_label` is the
+    edge's player-facing choice text (falls back to `text` when the edge has none set)."""
 
     id: int
+    title: str
     text: str
+    option_label: str = ""
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
+
+
+class DialogueParentOut(Schema):
+    """A node that links to the current one — powers the back-navigation picker when a
+    node is reachable from more than one place."""
+
+    id: int
+    title: str
+    text: str
 
 
 class DialogueDetailOut(Schema):
-    """The current dialogue plus its immediate responses (the wheel)."""
+    """The current dialogue plus its immediate responses (the wheel) and the node(s) that
+    link to it (0 = scene root, 1 = normal back-nav, 2+ = picker)."""
 
     id: int
+    title: str
     text: str
     scene_id: int | None = None
-    parent_id: int | None = None
+    parents: list[DialogueParentOut] = []
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
     responses: list[DialogueSummaryOut] = []
 
 
 class DialogueNodeOut(Schema):
-    """A single node in a scene's flat dialogue list — enough to lay out the whole tree."""
+    """A single node in a scene's flat dialogue list — enough to lay out the whole graph."""
 
     id: int
-    parent_id: int | None = None
+    title: str
+    parent_ids: list[int] = []
     text: str
     character: CharacterOut | None = None
+    requirements: list[dict[str, Any]] = []
+    effects: list[dict[str, Any]] = []
 
 
 class DialogueIn(Schema):
@@ -209,6 +235,8 @@ class DialogueIn(Schema):
     parent_id: int | None = None
     character_id: int | None = None
     text: str = ""
+    requirements: list[dict[str, Any]] | None = None
+    effects: list[dict[str, Any]] | None = None
 
 
 class DialogueUpdateIn(Schema):
@@ -216,6 +244,34 @@ class DialogueUpdateIn(Schema):
 
     character_id: int | None = None
     text: str | None = None
+    requirements: list[dict[str, Any]] | None = None
+    effects: list[dict[str, Any]] | None = None
+
+
+class DialogueLinkIn(Schema):
+    """Attach an existing node as an additional response of another existing node — the
+    concrete "reuse/reconverge" action (no new Dialogue row, just a new edge)."""
+
+    target_id: int
+    option_label: str = ""
+
+
+class YarnImportIn(Schema):
+    text: str
+    parent_id: int | None = None
+
+
+class YarnImportOut(Schema):
+    """Result of a Yarn import: how much landed, its new root(s), and anything skipped."""
+
+    created: int
+    root_ids: list[int] = []
+    warnings: list[str] = []
+
+
+class YarnExportOut(Schema):
+    filename: str
+    text: str
 
 
 # --- Auth (placeholder) -----------------------------------------------------------------------
@@ -454,6 +510,8 @@ def update_project(request, project_id: int, payload: ProjectUpdateIn):
         project.systems = data["systems"]
     if "hud_layout" in data and data["hud_layout"] is not None:
         project.hud_layout = data["hud_layout"]
+    if "state_schema" in data and data["state_schema"] is not None:
+        project.state_schema = data["state_schema"]
     project.save()
     return project
 
@@ -555,45 +613,95 @@ def list_scenes(request):
     summary="All dialogue nodes in a scene (flat, for the tree view)",
 )
 def scene_dialogue_tree(request, scene_id: int):
-    """Every dialogue node in a scene as a flat list — the frontend builds the tree from
-    `id`/`parent_id`. One JOIN (no N+1); each node's character serializes like everywhere else
+    """Every dialogue node in a scene as a flat list — the frontend builds the graph from
+    `id`/`parent_ids`. One JOIN (no N+1); each node's character serializes like everywhere else
     (presigned image URL via CharacterOut)."""
     get_object_or_404(Scene, id=scene_id)
-    return list(Dialogue.objects.filter(scene_id=scene_id).select_related("character"))
+    nodes = Dialogue.objects.filter(scene_id=scene_id).select_related("character").prefetch_related(
+        "incoming_edges"
+    )
+    return [
+        {
+            "id": n.id,
+            "title": n.title,
+            "parent_ids": [e.from_node_id for e in n.incoming_edges.all()],
+            "text": n.text,
+            "character": n.character,
+            "requirements": n.requirements,
+            "effects": n.effects,
+        }
+        for n in nodes
+    ]
 
 
-# --- Dialogues (branching tree) ---------------------------------------------------------------
+# --- Dialogues (branching graph) ---------------------------------------------------------------
+def _summary_dict(d: Dialogue, option_label: str = "") -> dict:
+    return {
+        "id": d.id,
+        "title": d.title,
+        "text": d.text,
+        "option_label": option_label,
+        "character": d.character,
+        "requirements": d.requirements,
+        "effects": d.effects,
+    }
+
+
 @api.get("/dialogues", response=list[DialogueSummaryOut], summary="List root dialogues")
 def list_root_dialogues(request, scene_id: int | None = None):
-    """Root dialogues (no parent). Pass `scene_id` to get the roots for one scene."""
-    qs = Dialogue.objects.filter(parent__isnull=True).select_related("character")
+    """Root dialogues (no incoming edges). Pass `scene_id` to get the roots for one scene."""
+    qs = Dialogue.objects.filter(incoming_edges__isnull=True).select_related("character")
     if scene_id is not None:
         qs = qs.filter(scene_id=scene_id)
-    return list(qs)
+    return [_summary_dict(d) for d in qs]
 
 
-def _dialogue_detail(dialogue_id: int) -> Dialogue:
-    """Fetch a dialogue with the relations needed to serialize DialogueDetailOut."""
-    return get_object_or_404(
-        Dialogue.objects.select_related("character").prefetch_related("responses__character"),
+def _dialogue_detail(dialogue_id: int) -> dict:
+    """Fetch a dialogue and build the dict DialogueDetailOut serializes."""
+    dialogue = get_object_or_404(
+        Dialogue.objects.select_related("character").prefetch_related(
+            "outgoing_edges__to_node__character", "incoming_edges__from_node"
+        ),
         id=dialogue_id,
     )
+    responses = [
+        _summary_dict(edge.to_node, edge.option_label) for edge in dialogue.outgoing_edges.all()
+    ]
+    parents = [
+        {"id": edge.from_node.id, "title": edge.from_node.title, "text": edge.from_node.text}
+        for edge in dialogue.incoming_edges.all()
+    ]
+    return {
+        "id": dialogue.id,
+        "title": dialogue.title,
+        "text": dialogue.text,
+        "scene_id": dialogue.scene_id,
+        "parents": parents,
+        "character": dialogue.character,
+        "requirements": dialogue.requirements,
+        "effects": dialogue.effects,
+        "responses": responses,
+    }
 
 
 @api.get("/dialogues/{int:dialogue_id}", response=DialogueDetailOut, summary="Get a dialogue")
 def get_dialogue(request, dialogue_id: int):
-    """A dialogue with its character and immediate responses (its children)."""
+    """A dialogue with its character, immediate responses, and linking parent(s)."""
     return _dialogue_detail(dialogue_id)
 
 
 @api.post("/dialogues", response={201: DialogueDetailOut}, summary="Create a dialogue")
 def create_dialogue(request, payload: DialogueIn):
     """Create a dialogue node. Pass `parent_id` to attach it as a response of another node."""
-    dialogue = Dialogue.objects.create(
-        scene_id=payload.scene_id,
-        parent_id=payload.parent_id,
+    scene = get_object_or_404(Scene, id=payload.scene_id) if payload.scene_id else None
+    parent = get_object_or_404(Dialogue, id=payload.parent_id) if payload.parent_id else None
+    dialogue = Dialogue.create_node(
+        scene=scene,
+        parent=parent,
         character_id=payload.character_id,
         text=payload.text,
+        requirements=payload.requirements,
+        effects=payload.effects,
     )
     return 201, _dialogue_detail(dialogue.id)
 
@@ -607,5 +715,66 @@ def update_dialogue(request, dialogue_id: int, payload: DialogueUpdateIn):
         dialogue.text = data["text"] or ""
     if "character_id" in data:
         dialogue.character_id = data["character_id"]
+    if "requirements" in data and data["requirements"] is not None:
+        dialogue.requirements = data["requirements"]
+    if "effects" in data and data["effects"] is not None:
+        dialogue.effects = data["effects"]
     dialogue.save()
+    dialogue.sync_title_from_effects()
     return _dialogue_detail(dialogue.id)
+
+
+@api.post(
+    "/dialogues/{int:dialogue_id}/link",
+    response={201: DialogueDetailOut, 400: Error},
+    summary="Link an existing node as a response (reuse/reconverge)",
+)
+def link_dialogue(request, dialogue_id: int, payload: DialogueLinkIn):
+    """Attach an existing node (`target_id`) as an additional response of `dialogue_id`,
+    without creating a new node — how two branches converge back onto the same node."""
+    if payload.target_id == dialogue_id:
+        return 400, {"error": "A node cannot link to itself"}
+    from_node = get_object_or_404(Dialogue, id=dialogue_id)
+    to_node = get_object_or_404(Dialogue, id=payload.target_id)
+    edge, created = DialogueEdge.objects.get_or_create(
+        from_node=from_node,
+        to_node=to_node,
+        defaults={"order": from_node.outgoing_edges.count(), "option_label": payload.option_label},
+    )
+    if not created and payload.option_label and edge.option_label != payload.option_label:
+        edge.option_label = payload.option_label
+        edge.save(update_fields=["option_label"])
+    return 201, _dialogue_detail(from_node.id)
+
+
+@api.post(
+    "/scenes/{int:scene_id}/import-yarn",
+    response={201: YarnImportOut, 400: Error},
+    summary="Import a Yarn script into a scene as dialogue nodes",
+)
+def import_yarn_view(request, scene_id: int, payload: YarnImportIn):
+    """Parse a bounded subset of Yarn (see `services/yarn_import.py`) and materialize it as
+    dialogue nodes/edges in this scene. Pass `parent_id` to attach the pasted content as a new
+    response of that existing node instead of a freestanding root — continuing a branch that's
+    already there. All-or-nothing: a bad jump target aborts the whole import rather than
+    leaving orphaned nodes."""
+    scene = get_object_or_404(Scene, id=scene_id)
+    if payload.parent_id is not None:
+        get_object_or_404(Dialogue, id=payload.parent_id)
+    try:
+        result = yarn_import.import_yarn(scene, payload.text, parent_id=payload.parent_id)
+    except yarn_import.YarnImportError as exc:
+        return 400, {"error": str(exc)}
+    return 201, result
+
+
+@api.get(
+    "/scenes/{int:scene_id}/export-yarn",
+    response=YarnExportOut,
+    summary="Export a scene's dialogue graph as a Yarn script",
+)
+def export_yarn_view(request, scene_id: int):
+    scene = get_object_or_404(Scene, id=scene_id)
+    text = yarn_export.export_scene_to_yarn(scene)
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", scene.name or "").strip("-").lower() or f"scene-{scene.id}"
+    return {"filename": f"{slug}.yarn", "text": text}
