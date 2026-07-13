@@ -10,6 +10,7 @@ import {
   type Scope,
 } from '../lib/gameSystems';
 import { useProject } from './ProjectHomePage';
+import SystemSim from '../components/systems/SystemSim';
 import './ProjectTabs.css';
 
 export default function ProjectSystemsPage() {
@@ -134,15 +135,18 @@ export default function ProjectSystemsPage() {
               {activeState.enabled && <span className="psys__badge">Active</span>}
             </div>
             {activeState.enabled ? (
-              <div className="psys__questions">
-                {activeSystem.questions.map((q) => (
-                  <QuestionRow
-                    key={q.key}
-                    question={q}
-                    value={activeState.values[q.key]}
-                    onChange={(v) => setValue(q.key, v)}
-                  />
-                ))}
+              <div className="psys__config-body">
+                <div className="psys__questions">
+                  {activeSystem.questions.map((q) => (
+                    <QuestionRow
+                      key={q.key}
+                      question={q}
+                      value={activeState.values[q.key]}
+                      onChange={(v) => setValue(q.key, v)}
+                    />
+                  ))}
+                </div>
+                <SystemSim id={activeId} state={state} setValue={setValue} />
               </div>
             ) : (
               <div className="psys__disabled">

@@ -148,6 +148,21 @@ export const SYSTEMS: SystemDef[] = [
     ],
   },
   {
+    id: 'movement',
+    name: 'Movement',
+    blurb: 'Running, jumping, and gravity',
+    icon: '🏃',
+    // BASE_COMPONENTS already provides MovementController on every character;
+    // these are the tunable additions this system layers on top.
+    components: ['JumpComponent', 'LocomotionTuning'],
+    questions: [
+      { kind: 'single', key: 'scope', label: 'Who moves like this?', options: SCOPE_OPTIONS, defaultValue: 'all' },
+      { kind: 'slider', key: 'jumpHeight', label: 'Jump height', min: 1, max: 10, step: 1, unit: 'units', defaultValue: 3 },
+      { kind: 'slider', key: 'gravity', label: 'Gravity', min: 10, max: 200, step: 5, unit: '% of Earth', defaultValue: 100 },
+      { kind: 'slider', key: 'runSpeed', label: 'Run speed', min: 1, max: 20, step: 1, unit: 'units/sec', defaultValue: 8 },
+    ],
+  },
+  {
     id: 'magic',
     name: 'Magic / Mana',
     blurb: 'Spells, mana, and cooldowns',
@@ -296,18 +311,18 @@ export function genreDefaults(genre: string): ArchitectState {
     for (const id of Object.keys(base)) base[id].enabled = ids.includes(id);
   };
   switch (genre) {
-    case 'rpg': enable(['health', 'stamina', 'magic', 'inventory', 'combat', 'dialogue']); break;
-    case 'shooter': enable(['health', 'stamina', 'inventory', 'combat']); break;
-    case 'platformer': enable(['health', 'stamina']); break;
+    case 'rpg': enable(['health', 'stamina', 'movement', 'magic', 'inventory', 'combat', 'dialogue']); break;
+    case 'shooter': enable(['health', 'stamina', 'movement', 'inventory', 'combat']); break;
+    case 'platformer': enable(['health', 'stamina', 'movement']); break;
     case 'puzzle': enable(['inventory']); break;
     case 'card': enable(['health', 'magic']); break;
     case 'social': enable(['inventory', 'dialogue']); break;
-    case 'survival': enable(['health', 'stamina', 'inventory', 'combat']); break;
-    case 'racing': enable(['stamina']); break;
+    case 'survival': enable(['health', 'stamina', 'movement', 'inventory', 'combat']); break;
+    case 'racing': enable(['stamina', 'movement']); break;
     case 'strategy': enable(['combat', 'inventory']); break;
-    case 'horror': enable(['health', 'stamina', 'inventory']); break;
-    case 'sandbox': enable(['health', 'stamina', 'inventory', 'combat']); break;
-    case 'fighting': enable(['health', 'stamina', 'combat']); break;
+    case 'horror': enable(['health', 'stamina', 'movement', 'inventory']); break;
+    case 'sandbox': enable(['health', 'stamina', 'movement', 'inventory', 'combat']); break;
+    case 'fighting': enable(['health', 'stamina', 'movement', 'combat']); break;
   }
   return base;
 }
