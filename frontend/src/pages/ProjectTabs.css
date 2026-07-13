@@ -260,6 +260,19 @@
   border-radius: 12px;
 }
 
+.psys__config-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 840px) {
+  .psys__config-body {
+    grid-template-columns: 1fr;
+  }
+}
+
 .psys__questions {
   display: flex;
   flex-direction: column;
