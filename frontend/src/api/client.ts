@@ -17,6 +17,7 @@ export type RelatedCharacter = components['schemas']['RelatedCharacterOut'];
 export type LevelCharacter = components['schemas']['LevelCharacterOut'];
 export type Project = components['schemas']['ProjectOut'];
 export type Level = components['schemas']['LevelOut'];
+export type Location = components['schemas']['LocationOut'];
 export type Scene = components['schemas']['SceneOut'];
 export type DialogueSummary = components['schemas']['DialogueSummaryOut'];
 export type DialogueDetail = components['schemas']['DialogueDetailOut'];

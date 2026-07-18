@@ -270,8 +270,106 @@ export interface paths {
         /** List scenes */
         get: operations["api_api_list_scenes"];
         put?: never;
+        /**
+         * Create a scene
+         * @description Create a scene in a level (optionally at a location). Order auto-appends within the level.
+         */
+        post: operations["api_api_create_scene"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenes/{scene_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a scene
+         * @description Partial update: rename, (re)assign to a location, or reorder.
+         */
+        patch: operations["api_api_update_scene"];
+        trace?: never;
+    };
+    "/api/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List locations
+         * @description All locations, or just one level's locations when `level_id` is given.
+         */
+        get: operations["api_api_list_locations"];
+        put?: never;
+        /** Create a location */
+        post: operations["api_api_create_location"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/locations/{location_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a location */
+        get: operations["api_api_get_location"];
+        put?: never;
+        post?: never;
+        /** Delete a location */
+        delete: operations["api_api_delete_location"];
+        options?: never;
+        head?: never;
+        /** Update a location */
+        patch: operations["api_api_update_location"];
+        trace?: never;
+    };
+    "/api/locations/{location_id}/characters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Place a character at a location */
+        post: operations["api_api_add_location_character"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/locations/{location_id}/characters/{character_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a character from a location */
+        delete: operations["api_api_remove_location_character"];
         options?: never;
         head?: never;
         patch?: never;
@@ -696,6 +794,92 @@ export interface components {
             level_id: number;
             /** Level Name */
             level_name: string;
+            /** Location Id */
+            location_id?: number | null;
+        };
+        /** SceneCreateIn */
+        SceneCreateIn: {
+            /**
+             * Name
+             * @default New Scene
+             */
+            name: string;
+            /** Level Id */
+            level_id: number;
+            /** Location Id */
+            location_id?: number | null;
+            /** Order */
+            order?: number | null;
+        };
+        /**
+         * SceneUpdateIn
+         * @description Partial update — omitted fields are left unchanged.
+         */
+        SceneUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Location Id */
+            location_id?: number | null;
+            /** Order */
+            order?: number | null;
+        };
+        /**
+         * LocationOut
+         * @description A place within a level, plus the characters manually placed there.
+         */
+        LocationOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Order */
+            order: number;
+            /** Level Id */
+            level_id: number;
+            /**
+             * Characters
+             * @default []
+             */
+            characters: components["schemas"]["CharacterOut"][];
+        };
+        /** LocationCreateIn */
+        LocationCreateIn: {
+            /**
+             * Name
+             * @default New Location
+             */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Order */
+            order?: number | null;
+            /** Level Id */
+            level_id?: number | null;
+        };
+        /**
+         * LocationUpdateIn
+         * @description Partial update — omitted fields are left unchanged.
+         */
+        LocationUpdateIn: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Order */
+            order?: number | null;
+        };
+        /** LocationCharacterIn */
+        LocationCharacterIn: {
+            /** Character Id */
+            character_id: number;
         };
         /**
          * DialogueNodeOut
@@ -1454,6 +1638,237 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SceneOut"][];
+                };
+            };
+        };
+    };
+    api_api_create_scene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SceneCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneOut"];
+                };
+            };
+        };
+    };
+    api_api_update_scene: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SceneUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneOut"];
+                };
+            };
+        };
+    };
+    api_api_list_locations: {
+        parameters: {
+            query?: {
+                level_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"][];
+                };
+            };
+        };
+    };
+    api_api_create_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    api_api_get_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    api_api_delete_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    api_api_update_location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+        };
+    };
+    api_api_add_location_character: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationCharacterIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    api_api_remove_location_character: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                location_id: number;
+                character_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LocationOut"];
                 };
             };
         };

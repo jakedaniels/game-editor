@@ -40,6 +40,12 @@ export default function LevelHomePage() {
           <span className="lh-tile__desc">Cast &amp; their dialogue</span>
         </Link>
 
+        <Link to={`/projects/${projectId}/levels/${levelId}/locations`} className="lh-tile">
+          <span className="lh-tile__icon">📍</span>
+          <span className="lh-tile__title">Locations</span>
+          <span className="lh-tile__desc">Places, who's there &amp; scenes</span>
+        </Link>
+
         <div className="lh-tile lh-tile--soon" aria-disabled="true">
           <span className="lh-tile__icon">⚙️</span>
           <span className="lh-tile__title">Settings</span>
