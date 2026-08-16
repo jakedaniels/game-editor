@@ -7,10 +7,16 @@ Project context for Claude Code. Read this before making changes.
 `game-editor` is an early-stage **Figma-like design platform** for building games. The top level is
 a **Project** (a game), which has tabs: **Settings** (2D/3D + genre), **Systems** (a game-system
 architect — health, magic, inventory, … with per-system questions, producing an "ai-game-maker"
-blueprint), **Preview** (a draggable retro HUD layout), and **Levels** (each Level has a
-**branching dialogue editor**). A standalone **shape editor** (SVG outlines) also exists (route
-kept, no nav). It is intentionally minimal — favor small, readable additions over large
-abstractions until the feature set grows.
+blueprint), **Preview** (a draggable retro HUD layout), **Levels** (each Level has a
+**branching dialogue editor** and a **tile-grid layout editor**), and **Entities** (the level
+palette). A standalone **shape editor** (SVG outlines) also exists (route kept, no nav). It is
+intentionally minimal — favor small, readable additions over large abstractions until the
+feature set grows.
+
+The product north star is `docs/VISION.md`: the platform is the **source of truth an AI coding
+agent builds from** — its unified export (`gameblueprint/0.1`, contract in
+`docs/blueprint-schema.md`, served by `GET /api/projects/{id}/export`) is what the MCP server
+(separate effort) serves to agents working in game engines.
 
 The Systems/Settings/Preview tabs were consolidated from the `prototypes/lovable-game-systems-pages/`
 Lovable prototype (a different stack — TanStack/Tailwind/shadcn); their data + logic were **ported**
@@ -48,7 +54,14 @@ module declarations for CSS/asset imports — keep it.
   `/projects/:projectId/characters/:characterId` = `CharacterDetailPage` (edit name/description,
   manage relationships, plus a TODO "Technical details" stub). `/shapes` = `ShapeEditorPage`
   (route kept; no nav). **Characters are per-project** — there is no global `/characters` route or
-  nav item.
+  nav item. Additional tabs/routes: `entities` = `EntitiesPage` (the project's **level palette**:
+  enemies/hazards/pickups/props, each with a one-char `glyph`, bounded `behavior` dict, and
+  optional sprite via the same S3/FLUX pipeline as characters; "Add starter set" seeds
+  walker/spikes/coin), and `/projects/:projectId/levels/:levelId/layout` = `LevelLayoutPage`
+  (paint-editor for the level's ASCII tile grid — palette of built-in tiles `. # = P G` +
+  entity glyphs, drag-paint, width/height resize, debounced PATCH of `Level.layout`, and the
+  level's **intro dialogue scene** picker). The Systems tab's Blueprint aside has an **Export**
+  button downloading the full `gameblueprint` JSON from `/api/projects/{id}/export`.
 - **Characters** (`pages/CharactersPage.tsx` + `CharacterDetailPage.tsx`): the list is a card grid
   (`Characters.css`) scoped via `GET /api/characters?project_id=`; "＋ New character" POSTs then
   routes to the detail page. Detail edits persist with `PATCH /api/characters/{id}`.
@@ -114,8 +127,26 @@ module declarations for CSS/asset imports — keep it.
     `PATCH /api/projects/{id}` — the **Project** (top-level game). One PATCH serves rename,
     Settings (`dimension`/`genre`), Systems (`systems` JSON), and Preview (`hud_layout` JSON).
   - `GET /api/levels` (optional `?project_id=` filter), `POST /api/levels` (create; auto-appends
-    `order`, takes `project_id`), `GET /api/levels/{id}`, `PATCH /api/levels/{id}` (rename) — the
-    project's Levels list + per-level hub. `GET /api/levels/{id}/characters` returns the level's
+    `order`, takes `project_id`), `GET /api/levels/{id}`, `PATCH /api/levels/{id}` (rename,
+    `layout` — validated ASCII tile grid `{width,height,rows}` (row lengths must match, every
+    glyph must be a built-in tile or a project entity glyph; 400 otherwise) — and
+    `intro_scene_id`, which must be one of the level's own scenes) — the
+    project's Levels list + per-level hub.
+  - **Entity types** (per-project level palette): `GET /api/entities?project_id=`,
+    `POST /api/entities` (name/glyph/category/behavior; glyph must be a single char, unique per
+    project, and not a built-in tile), `PATCH`/`DELETE /api/entities/{id}`,
+    `POST /api/entities/{id}/image` + `/generate-image` (same S3/FLUX services as characters,
+    stored under `Entities/Project-<pid>/entity-<eid>/`), and
+    `POST /api/projects/{id}/seed-entities` (idempotent starter set: walker `e`, spikes `^`,
+    coin `o`).
+  - `GET /api/projects/{id}/export` — the **unified `gameblueprint/0.1` export** built by
+    `api/services/blueprint.py`: systems answers + **derived feel numbers**
+    (`api/services/derived.py`, a Python port of `systemSimMath.ts` — keep in sync), characters
+    + relationships, entity palette, tile legend (built-ins `. # = P G` + entity glyphs), and
+    every level's layout grid, derived entity coordinate list (top-left origin, y down),
+    `intro_scene_id`, `on_complete.next_level_id` (next by `order`), and full dialogue graphs
+    (nodes + edges). Schema contract: `docs/blueprint-schema.md` — change both together and
+    bump the format version on breaking changes. `GET /api/levels/{id}/characters` returns the level's
     cast **deduced from dialogue speakers** (`Dialogue.character` where `scene.level == level`),
     each with the lines they speak — powers `LevelCharactersPage`.
   - **Characters** (per-project): `GET /api/characters` (optional `?project_id=` filter),
@@ -176,8 +207,10 @@ module declarations for CSS/asset imports — keep it.
   state_schema` has the info, but scenes commonly share state keys, and declaring the same
   variable twice across multiple `.yarn` files loaded into one Yarn Spinner project is a compile
   error; add declares by hand (or export project variables once, if that's built later).
-- `api/models.py`: `Project → Level → Scene` (FKs), `Character` (now `project` FK + `description`
-  + `image_key`; `Scene ↔ Character` M2M), `CharacterRelationship` (directed labeled edge
+- `api/models.py`: `Project → Level → Scene` (FKs; `Level` also has `layout` JSONB — the ASCII
+  tile grid — and an `intro_scene` FK), `EntityType` (per-project palette entry:
+  name/glyph/category/behavior JSONB/image_key; unique (project, glyph) and (project, name)),
+  `Character` (now `project` FK + `description` + `image_key`; `Scene ↔ Character` M2M), `CharacterRelationship` (directed labeled edge
   `from_character → to_character` with a `uniq_char_relationship` unique constraint; a character's
   outgoing links are `relationships_out`), and `Dialogue` — a node in a branching dialogue
   **graph** (`scene` FK, `character` FK, `text`, plus `requirements`/`effects` JSONB lists of typed

@@ -52,13 +52,28 @@ class Project(models.Model):
 
 
 class Level(models.Model):
-    """A level in the game. Belongs to a project; contains an ordered set of scenes."""
+    """A level in the game. Belongs to a project; contains an ordered set of scenes.
+
+    `layout` is the level's 2D tile map as JSON: `{"width": W, "height": H, "rows": [str]}`,
+    where each row is a string of W glyph characters. Built-in glyphs (see api.BUILTIN_TILES):
+    "." empty, "#" solid ground, "=" one-way platform, "P" player start, "G" goal. Any other
+    glyph must match an EntityType.glyph in the same project. Stored as ASCII rows on purpose —
+    it's the most legible form for both humans and AI agents, and the export derives a
+    coordinate list from it. `{}` = no layout drawn yet.
+
+    `intro_scene` optionally points at one of this level's dialogue scenes to play when the
+    level starts. Level completion advances to the next level by `order` within the project.
+    """
 
     project = models.ForeignKey(
         Project, null=True, blank=True, on_delete=models.CASCADE, related_name="levels"
     )
     name = models.CharField(max_length=100)
     order = models.PositiveIntegerField(default=0)
+    layout = models.JSONField(default=dict, blank=True)
+    intro_scene = models.ForeignKey(
+        "Scene", null=True, blank=True, on_delete=models.SET_NULL, related_name="intro_for_levels"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,6 +82,53 @@ class Level(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+class EntityType(models.Model):
+    """A placeable thing in a level that isn't a speaking character: enemies, hazards,
+    pickups, props. Per-project, like Characters.
+
+    `glyph` is the single character that represents this entity in Level.layout rows —
+    unique per project, and must not collide with the built-in tile glyphs. `behavior` is a
+    deliberately bounded typed dict (mirroring the requirements/effects philosophy):
+    `{"pattern": "static"|"walk"|"patrol"|"fly", "speed": number (units/sec),
+      "harmful_on_touch": bool, "stompable": bool}` — enough for an agent to implement a
+    Mario-style entity without freeform prose being the only spec. `image_key` is an S3
+    object key for the sprite/concept image (same pipeline as Character portraits).
+    """
+
+    CATEGORY_ENEMY = "enemy"
+    CATEGORY_HAZARD = "hazard"
+    CATEGORY_PICKUP = "pickup"
+    CATEGORY_PROP = "prop"
+    CATEGORY_CHOICES = [
+        (CATEGORY_ENEMY, "Enemy"),
+        (CATEGORY_HAZARD, "Hazard"),
+        (CATEGORY_PICKUP, "Pickup"),
+        (CATEGORY_PROP, "Prop"),
+    ]
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="entity_types"
+    )
+    name = models.CharField(max_length=50)
+    glyph = models.CharField(max_length=1)
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES, default=CATEGORY_ENEMY)
+    description = models.TextField(blank=True, default="")
+    behavior = models.JSONField(default=dict, blank=True)
+    image_key = models.CharField(max_length=500, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["project", "glyph"], name="uniq_entity_glyph"),
+            models.UniqueConstraint(fields=["project", "name"], name="uniq_entity_name"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.glyph})"
 
 
 class Character(models.Model):
