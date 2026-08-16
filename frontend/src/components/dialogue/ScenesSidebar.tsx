@@ -4,13 +4,14 @@ interface ScenesSidebarProps {
   scenes: Scene[];
   selectedId: number | null;
   onSelect: (id: number) => void;
+  onCreateScene: () => void;
 }
 
 /**
  * Left sidebar listing scenes, grouped under their level. Selecting a scene switches the
  * whole editor to that scene's dialogue tree.
  */
-export function ScenesSidebar({ scenes, selectedId, onSelect }: ScenesSidebarProps) {
+export function ScenesSidebar({ scenes, selectedId, onSelect, onCreateScene }: ScenesSidebarProps) {
   // Group scenes by level name, preserving order.
   const byLevel = new Map<string, Scene[]>();
   for (const s of scenes) {
@@ -43,6 +44,9 @@ export function ScenesSidebar({ scenes, selectedId, onSelect }: ScenesSidebarPro
           </ul>
         </div>
       ))}
+      <button type="button" className="btn btn--add sidebar__add" onClick={onCreateScene}>
+        ＋ New scene
+      </button>
     </aside>
   );
 }

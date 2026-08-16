@@ -1,0 +1,224 @@
+.locations-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+.locations-page__back {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.locations-page__back:hover {
+  color: var(--orange-soft);
+}
+
+.locations-page__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.locations-page__title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  color: var(--orange-soft);
+  text-shadow: 0 0 16px var(--orange-glow);
+  margin: 0;
+}
+
+.locations-page__lead {
+  max-width: 62ch;
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+}
+
+.locations-page__error {
+  color: var(--orange-soft);
+}
+
+.locations-page__empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.locations-page__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Location card */
+.loc-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
+  padding: 1.25rem;
+}
+
+.loc-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.loc-card__icon {
+  font-size: 1.2rem;
+}
+
+.loc-card__name {
+  flex: 1;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 1.05rem;
+  color: var(--orange-soft);
+  margin: 0;
+}
+
+.loc-card__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.loc-card__edit {
+  display: flex;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.loc-card__input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.loc-card__section {
+  margin-top: 1rem;
+}
+
+.loc-card__section-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.66rem;
+  color: var(--muted);
+  margin: 0 0 0.55rem;
+}
+
+/* Character chips */
+.loc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.loc-chips__empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.35rem 0.25rem 0.6rem;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.loc-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.loc-chip__remove:hover {
+  color: var(--orange-soft);
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+}
+
+.loc-card__select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  color: var(--text);
+  font: inherit;
+}
+
+/* Scenes */
+.loc-scenes {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.loc-scenes__empty {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.loc-scene {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.loc-scene:hover {
+  border-color: var(--orange);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+
+.loc-scene__name {
+  font-size: 0.88rem;
+}
+
+.loc-scene__chevron {
+  color: var(--muted);
+}
+
+.loc-card__add-scene {
+  font-size: 0.8rem;
+}

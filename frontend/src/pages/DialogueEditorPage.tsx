@@ -258,6 +258,18 @@ export default function DialogueEditorPage() {
     setAddRequirements((current) => current.filter((_, index) => index !== indexToRemove));
   }
 
+  // Create a new (empty) scene in this level and switch to it.
+  async function createScene() {
+    if (!levelId) return;
+    const { data, error } = await api.POST('/api/scenes', {
+      body: { name: 'New Scene', level_id: Number(levelId) },
+    });
+    if (error || !data) return setError('Failed to create scene');
+    setError(null);
+    setScenes((prev) => [...prev, data]);
+    setSceneId(data.id);
+  }
+
   async function handleAdd(text: string, characterId: number | null) {
     if (sceneId == null) return;
     const { data, error } = await api.POST('/api/dialogues', {
@@ -349,7 +361,12 @@ export default function DialogueEditorPage() {
 
   return (
     <div className="dialogue-editor">
-      <ScenesSidebar scenes={scenes} selectedId={sceneId} onSelect={setSceneId} />
+      <ScenesSidebar
+        scenes={scenes}
+        selectedId={sceneId}
+        onSelect={setSceneId}
+        onCreateScene={createScene}
+      />
 
       <section className="dialogue-editor__stage">
         <div className="dialogue-editor__crumb">
